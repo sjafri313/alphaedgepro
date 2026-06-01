@@ -227,19 +227,27 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
   max-width:520px;width:100%;padding:24px;max-height:90vh;overflow-y:auto
 }
 .dm-check{
-  display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;
-  padding:10px;background:var(--bg3);border-radius:6px;
-  border:1px solid var(--border);cursor:pointer
+  display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;
+  padding:12px;background:var(--bg3);border-radius:6px;
+  border:1px solid var(--border);cursor:pointer;
+  font-size:11px;color:#8aa0b8;line-height:1.7;
+  -webkit-user-select:none;user-select:none
 }
-.dm-check input{margin-top:2px;accent-color:var(--green);width:15px;height:15px;flex-shrink:0;cursor:pointer}
-.dm-check label{font-size:10px;color:#8aa0b8;line-height:1.7;cursor:pointer}
+.dm-check input{
+  margin-top:2px;accent-color:var(--green);
+  width:20px;height:20px;flex-shrink:0;cursor:pointer;
+  min-width:20px
+}
 #accept-btn{
-  width:100%;padding:12px;background:linear-gradient(135deg,#00a2ff,#0047ff);
-  border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:900;
+  width:100%;padding:16px;background:linear-gradient(135deg,#00a2ff,#0047ff);
+  border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:900;
   letter-spacing:1px;cursor:pointer;font-family:'Courier New',monospace;
-  opacity:.35;pointer-events:none;transition:opacity .2s
+  opacity:.3;pointer-events:none;transition:all .2s;
+  -webkit-appearance:none;touch-action:manipulation;
+  margin-top:4px
 }
-#accept-btn.active{opacity:1;pointer-events:all}
+#accept-btn.active{opacity:1;pointer-events:all;box-shadow:0 0 20px rgba(0,162,255,0.4)}
+#accept-btn.active:active{transform:scale(0.98);opacity:0.9}
 
 /* ══ MACRO TILE ══════════════════════════════════════ */
 .macro-tile{background:var(--bg3);border-radius:6px;padding:9px;text-align:center;border:1px solid var(--border)}
@@ -288,9 +296,9 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
       <strong>Alpha Edge Pro is for informational and educational purposes only.</strong> Not a registered investment adviser. All signals are algorithmic outputs and do NOT constitute investment advice.<br><br>
       <strong>Trading stocks and options involves substantial risk of loss.</strong> You may lose more than you invest. Always consult a licensed financial professional before trading.
     </div>
-    <div class="dm-check" onclick="toggle('chk1')"><input type="checkbox" id="chk1" onchange="checkAll()"/><label for="chk1">I understand this is <strong>informational only</strong> and NOT investment advice.</label></div>
-    <div class="dm-check" onclick="toggle('chk2')"><input type="checkbox" id="chk2" onchange="checkAll()"/><label for="chk2">I accept <strong>full responsibility</strong> for my trading decisions and understand the risk of loss.</label></div>
-    <div class="dm-check" onclick="toggle('chk3')"><input type="checkbox" id="chk3" onchange="checkAll()"/><label for="chk3">I am <strong>18 or older</strong> and agree to the Terms of Service.</label></div>
+    <label class="dm-check" for="chk1"><input type="checkbox" id="chk1" onchange="checkAll()"/>I understand this is <strong>informational only</strong> and NOT investment advice.</label>
+    <label class="dm-check" for="chk2"><input type="checkbox" id="chk2" onchange="checkAll()"/>I accept <strong>full responsibility</strong> for my trading decisions and understand the risk of loss.</label>
+    <label class="dm-check" for="chk3"><input type="checkbox" id="chk3" onchange="checkAll()"/>I am <strong>18 or older</strong> and agree to the Terms of Service.</label>
     <button id="accept-btn" onclick="acceptDisclaimer()">I UNDERSTAND — ENTER ALPHA EDGE PRO</button>
   </div>
 </div>
@@ -616,8 +624,23 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 // ── DISCLAIMER ─────────────────────────────────────
 function toggle(id){const c=$(id);c.checked=!c.checked;checkAll();}
-function checkAll(){const ok=['chk1','chk2','chk3'].every(id=>$(id).checked);$('accept-btn').classList.toggle('active',ok);}
-function acceptDisclaimer(){$('disclaimer-modal').style.display='none';sessionStorage.setItem('aep_ok','1');showApiOrApp();}
+function checkAll(){
+  const checked=['chk1','chk2','chk3'].filter(id=>$(id).checked).length;
+  const ok = checked === 3;
+  $('accept-btn').classList.toggle('active', ok);
+  $('accept-btn').textContent = ok 
+    ? 'I UNDERSTAND — ENTER ALPHA EDGE PRO' 
+    : 'CHECK ALL BOXES TO CONTINUE ('+checked+'/3)';
+}
+function acceptDisclaimer(){
+  // Double-check all boxes are checked
+  if(!['chk1','chk2','chk3'].every(id=>$(id).checked)){
+    checkAll(); return;
+  }
+  $('disclaimer-modal').style.display='none';
+  sessionStorage.setItem('aep_ok','1');
+  showApiOrApp();
+}
 
 // ── API KEY ─────────────────────────────────────────
 function showApiOrApp(){
