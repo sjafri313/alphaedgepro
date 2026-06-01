@@ -145,6 +145,11 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 .live-d{animation:pulse 2.5s infinite}
+.tt-w{position:relative;display:inline-flex;align-items:center;cursor:help}
+.tt-i{width:13px;height:13px;min-width:13px;border-radius:50%;background:rgba(0,162,255,0.15);border:1px solid rgba(0,162,255,0.4);color:var(--blue);font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1;font-family:monospace}
+.tt-b{display:none;position:absolute;left:18px;top:-4px;background:#0b1e32;border:1px solid var(--blue);border-radius:6px;padding:8px 10px;font-size:9px;color:#b0c4d8;line-height:1.6;width:190px;z-index:600;box-shadow:0 4px 20px rgba(0,0,0,0.6);pointer-events:none;font-weight:normal}
+.tt-b-up{top:auto;bottom:18px;left:-80px}
+.tt-w:hover .tt-b{display:block}
 </style>
 </head>
 <body>
@@ -314,7 +319,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
               <span id="ccnt" style="color:#2a4060;margin-left:auto"></span>
             </div>
             <div style="background:var(--bg1);border-radius:5px;padding:8px 4px;overflow-x:auto">
-              <canvas id="chart" height="148"></canvas>
+              <canvas id="chart" height="152"></canvas>
             </div>
           </div>
           <!-- Fundamentals -->
@@ -390,7 +395,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
 <script>
 'use strict';
 const SP500=['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','BRK.B','AVGO','JPM','LLY','UNH','V','XOM','MA','COST','HD','PG','JNJ','ABBV','MRK','BAC','CRM','ORCL','CVX','WMT','KO','AMD','PEP','TMO','NFLX','ADBE','GS','MS','BLK','DE','AXP','GILD','T','VRTX','ISRG','C','NOW','ADI','PLD','REGN','CI','BKNG','AMAT','LRCX','SO','DUK','FCX','SLB','LOW','BA','SCHW','CAT','UPS','QCOM','HON','AMGN','SPGI','INTU','WFC','IBM','NEE','PM','MCD','ACN','TXN'];
-const SCAN=['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','JPM','V','MA','AMD','NFLX','AVGO','CRM','ORCL','ADBE','PYPL','UBER','SHOP','COIN','BAC','GS','MS','WFC','C','JNJ','PFE','MRK','ABBV','LLY','XOM','CVX','SLB','EOG','MPC','HD','WMT','COST','TGT','LOW'];
+const SCAN=['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','JPM','V','MA','AMD','NFLX','AVGO','CRM','ORCL','ADBE','BAC','GS','MS','WFC','C','JNJ','PFE','MRK','ABBV','LLY','XOM','CVX','SLB','EOG','HD','WMT','COST','TGT','LOW','UNH','UNP','CAT','DE','HON','RTX','LMT','GE','MMM','ITW','ETN','INTC','QCOM','TXN','AMAT','LRCX','KLAC','MU','SQ','COIN','SHOP','UBER','SNAP','RBLX','DIS','CMCSA','VZ','TMUS','SBUX','MCD','CMG','HLT','MAR','CCL','DAL','UAL','AAL','LUV','BA','GD','NOC','LHX','TDG','PYPL','LYFT','PINS','EA','CI','HUM','CVS','BIIB','REGN','VRTX','GILD','BMY','ZTS','ISRG','SYK','BSX','MDT','ABT','TMO','DHR','IDXX'];
 const MACRO={cpi:3.4,cpiTrend:'&darr;',fedRate:5.25,fedTrend:'&rarr;',pmi:51.3,pmiTrend:'&uarr;',unemployment:3.9,unemploymentTrend:'&rarr;'};
 let API_KEY='',curData=null,synthCandles=false,refTimer=null,scanRan=false;
 const G=id=>document.getElementById(id);
@@ -506,53 +511,6 @@ async function fetchFG(){
 }
 
 // ── ANALYZE ──────────────────────────────────────────
-// ── YAHOO FINANCE CANDLE FALLBACK (via CORS proxy) ───
-async function fetchYahooCandles(sym){
-  // Yahoo Finance via CORS proxy — tries 3 proxies in order
-  const encoded = encodeURIComponent(
-    'https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo&includePrePost=false'
-  );
-  const urls = [
-    'https://corsproxy.io/?'+encoded,
-    'https://api.allorigins.win/raw?url='+encoded,
-    'https://thingproxy.freeboard.io/fetch/https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo'
-  ];
-  for(const url of urls){
-    try{
-      const r = await fetch(url, {signal: AbortSignal.timeout(7000)});
-      if(!r.ok) continue;
-      const data = await r.json();
-      const res = data?.chart?.result?.[0];
-      if(!res) continue;
-      const ts  = res.timestamp;
-      const q   = res.indicators?.quote?.[0];
-      if(!ts || !q || !q.close) continue;
-      const candles = [];
-      for(let i=0;i<ts.length;i++){
-        if(q.open[i]!=null && q.high[i]!=null && q.low[i]!=null && q.close[i]!=null){
-          candles.push({
-            o: parseFloat(q.open[i].toFixed(2)),
-            h: parseFloat(q.high[i].toFixed(2)),
-            l: parseFloat(q.low[i].toFixed(2)),
-            c: parseFloat(q.close[i].toFixed(2)),
-            v: q.volume?.[i] || 0,
-            t: ts[i]  // store unix timestamp for date axis
-          });
-        }
-      }
-      if(candles.length >= 5){
-        console.log('Yahoo candles OK via '+url.split('?')[0]+': '+candles.length+' bars for '+sym);
-        return candles.slice(-45);
-      }
-    }catch(e){
-      console.warn('Yahoo proxy failed: '+e.message);
-      continue;
-    }
-  }
-  console.warn('All Yahoo proxies failed for '+sym);
-  return null;
-}
-
 async function doAnalyze(){
   const sym=G('t-in').value.trim().toUpperCase();
   if(!sym)return;
@@ -575,7 +533,6 @@ async function doAnalyze(){
     ]);
     sT('st','FETCHING CANDLES...');
     const now=Math.floor(Date.now()/1000),from=now-86400*90;
-    // Try Finnhub candles first
     const cdl=await apiFetch('stock/candle?symbol='+sym+'&resolution=D&from='+from+'&to='+now).catch(()=>({s:'no_data'}));
     sT('st','FETCHING NEWS...');
     const today=new Date(),fd=new Date(today-7*86400000);
@@ -584,14 +541,13 @@ async function doAnalyze(){
     const fg=await fetchFG();
     let candles=[];synthCandles=false;
     if(cdl.s==='ok'&&Array.isArray(cdl.c)&&cdl.c.length>=5){
-      // Finnhub returned real candles
       candles=cdl.t.map((_,i)=>({o:cdl.o[i],h:cdl.h[i],l:cdl.l[i],c:cdl.c[i],v:cdl.v[i]})).slice(-45);
     }else{
-      // Finnhub free tier returned no_data — try Yahoo Finance as fallback
-      sT('st','FETCHING CHART DATA (YAHOO FINANCE)...');
-      candles=await fetchYahooCandles(sym);
-      if(!candles||candles.length<5){
-        // Final fallback: synthetic candles
+      sT('st','LOADING CHART (YAHOO FINANCE)...');
+      const yc=await fetchYahooCandles(sym);
+      if(yc&&yc.length>=5){
+        candles=yc;
+      }else{
         synthCandles=true;
         const p=quote.c,pc=quote.pc||p*.99,dr=(p-pc)/24;
         candles=Array.from({length:25},(_,i)=>{const b=pc+dr*i,v=b*.012;return{o:b-v*.3+Math.random()*v*.6,h:b+v*.5+Math.random()*v*.4,l:b-v*.5-Math.random()*v*.4,c:b+Math.random()*v*.4-v*.2,v:8e6+Math.random()*4e6};});
@@ -740,6 +696,9 @@ function buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,macro,news)
 
 // ── RENDER HELPERS ───────────────────────────────────
 function mR(l,v,c){return'<div class="ri"><span class="rl">'+l+'</span><span class="rv" style="color:'+(c||'var(--text)')+'">'+v+'</span></div>';}
+
+function mRI(l,tip,v,col){return'<div class="ri"><span class="rl" style="display:flex;align-items:center;gap:4px">'+l+'<span class="tt-w"><span class="tt-i">i</span><span class="tt-b">'+tip+'</span></span></span><span class="rv" style="color:'+(col||'var(--text)')+'">'+v+'</span></div>';}
+function mMI(val,lbl,tr,color,tip){return'<div class="mt" style="position:relative"><div class="mv" style="color:'+color+'">'+val+'</div><div class="ml" style="display:flex;align-items:center;justify-content:center;gap:3px">'+lbl+' '+tr+'<span class="tt-w"><span class="tt-i">i</span><span class="tt-b tt-b-up">'+tip+'</span></span></div></div>';}
 function mC(t,ok){return'<div class="chk"><span style="color:'+(ok?'var(--green)':'var(--red)')+';flex-shrink:0">'+(ok?'\u2713':'\u2717')+'</span><span>'+t+'</span></div>';}
 function mT(l,p,r){return'<div class="tpr"><span style="font-size:9px;color:var(--muted);font-weight:700">'+l+'</span><span style="font-size:12px;font-weight:900;color:var(--green);font-family:\'Courier New\',monospace">'+fmtP(p)+'</span><span style="font-size:9px;color:var(--gold);font-weight:700">'+r+'</span></div>';}
 function mM(val,lbl,tr,color,note){return'<div class="mt"><div class="mv" style="color:'+color+'">'+val+'</div><div class="ml">'+lbl+' '+tr+'</div><div style="font-size:7px;color:var(--muted);margin-top:2px">'+note+'</div></div>';}
@@ -795,15 +754,16 @@ function renderDash(a,candles,news,fg){
     const beat=e.actual>e.estimate,sur=e.estimate?((e.actual-e.estimate)/Math.abs(e.estimate)*100).toFixed(1):null;
     return'<div class="ei"><span>'+(e.period||'')+' Q'+(e.quarter||'?')+' \u00b7 EPS $'+fmt(e.actual,2)+' vs $'+fmt(e.estimate,2)+(sur?' ('+sur+'%)':'')+'</span><span class="'+(beat?'bb':'mb2')+'">'+(beat?'\u2713 BEAT':'\u2717 MISS')+'</span></div>';
   }).join(''):'<div style="font-size:9px;color:var(--muted);padding:4px 0">No earnings data</div>';
-  sH('d-fund','<div class="g2"><div>'+mR('P/E',f.pe?fmt(f.pe,1):'--',f.pe&&f.pe<25?'var(--green)':f.pe&&f.pe>50?'var(--red)':'var(--text)')+mR('Rev Growth',f.rg!=null?(f.rg*100).toFixed(1)+'%':'--',f.rg>0.1?'var(--green)':f.rg<0?'var(--red)':'var(--gold)')+mR('Net Margin',f.mg!=null?(f.mg*100).toFixed(1)+'%':'--',f.mg>0.1?'var(--green)':f.mg<0?'var(--red)':'var(--gold)')+mR('ROE',f.roe!=null?fmt(f.roe,1)+'%':'--',f.roe>15?'var(--green)':f.roe<5?'var(--red)':'var(--gold)')+mR('Debt/Eq',f.de!=null?fmt(f.de,2):'--',f.de!=null&&f.de<0.5?'var(--green)':f.de>2?'var(--red)':'var(--gold)')+mR('Score',f.score+'/100',sC(f.score))+'</div><div><div style="font-size:8px;color:var(--muted);font-weight:800;letter-spacing:1px;margin-bottom:5px">EARNINGS HISTORY</div>'+epsH+'</div></div>');
+  sH('d-fund','<div class="g2"><div>'+mRI('P/E Ratio','Price-to-Earnings: how much investors pay per dollar of earnings. Below 25 is attractive; above 50 may be overvalued.',f.pe?fmt(f.pe,1):'--',f.pe&&f.pe<25?'var(--green)':f.pe&&f.pe>50?'var(--red)':'var(--text)')+mRI('Rev Growth','Revenue Growth: year-over-year sales increase. Above 10% signals strong momentum; negative means business is shrinking.',f.rg!=null?(f.rg*100).toFixed(1)+'%':'--',f.rg>0.1?'var(--green)':f.rg<0?'var(--red)':'var(--gold)')+mRI('Net Margin','Net Profit Margin: percentage of revenue kept as profit. Above 10% is healthy; above 20% is excellent.',f.mg!=null?(f.mg*100).toFixed(1)+'%':'--',f.mg>0.1?'var(--green)':f.mg<0?'var(--red)':'var(--gold)')+mRI('ROE','Return on Equity: how efficiently management generates profit from shareholders money. Above 15% is strong; below 5% is weak.',f.roe!=null?fmt(f.roe,1)+'%':'--',f.roe>15?'var(--green)':f.roe<5?'var(--red)':'var(--gold)')+mRI('Debt/Equity','Debt relative to shareholders equity. Below 0.5 is conservative; above 2.0 means highly leveraged with significant risk.',f.de!=null?fmt(f.de,2):'--',f.de!=null&&f.de<0.5?'var(--green)':f.de>2?'var(--red)':'var(--gold)')+mRI('Fund Score','Composite score 0-100 blending earnings, revenue growth, margins, ROE, and balance sheet health.',f.score+'/100',sC(f.score))+'</div><div><div style="font-size:8px;color:var(--muted);font-weight:800;letter-spacing:1px;margin-bottom:5px">EARNINGS HISTORY</div>'+epsH+'</div></div>');
 
   // Macro
-  sH('d-mac',mM(MACRO.cpi+'%','CPI',MACRO.cpiTrend,MACRO.cpi<3?'var(--green)':MACRO.cpi>5?'var(--red)':'var(--gold)','Inflation')+mM(MACRO.fedRate+'%','FED',MACRO.fedTrend,MACRO.fedRate<3?'var(--green)':MACRO.fedRate>5?'var(--red)':'var(--gold)','Rate')+mM(MACRO.pmi+'','PMI',MACRO.pmiTrend,MACRO.pmi>52?'var(--green)':MACRO.pmi<49?'var(--red)':'var(--gold)','Activity')+mM(MACRO.unemployment+'%','UNEMP',MACRO.unemploymentTrend,MACRO.unemployment<4.5?'var(--green)':MACRO.unemployment>6?'var(--red)':'var(--gold)','Labor'));
+  sH('d-mac',mMI(MACRO.cpi+'%','CPI',MACRO.cpiTrend,MACRO.cpi<3?'var(--green)':MACRO.cpi>5?'var(--red)':'var(--gold)','Consumer Price Index: measures inflation. Below 2.5% is ideal for stocks; above 5% risks Fed tightening and valuation compression.')+mMI(MACRO.fedRate+'%','FED RATE',MACRO.fedTrend,MACRO.fedRate<3?'var(--green)':MACRO.fedRate>5?'var(--red)':'var(--gold)','Federal Reserve rate: low rates boost stock valuations; high rates compress P/E multiples and increase borrowing costs for companies.')+mMI(MACRO.pmi+'','PMI',MACRO.pmiTrend,MACRO.pmi>52?'var(--green)':MACRO.pmi<49?'var(--red)':'var(--gold)','Purchasing Managers Index: above 50 means economic expansion; below 50 signals contraction and potential recession risk.')+mMI(MACRO.unemployment+'%','UNEMP',MACRO.unemploymentTrend,MACRO.unemployment<4.5?'var(--green)':MACRO.unemployment>6?'var(--red)':'var(--gold)','Unemployment rate: below 4.5% signals a strong labor market; rising above 6% indicates economic deterioration and reduced consumer spending.'));
   sT('d-mac-i',a.mac.notes.join(' \u00b7 '));
 
   // Sentiment
   const fgC=fg.score<=40?'var(--green)':fg.score>=75?'var(--red)':'var(--gold)';
-  sH('d-sent','<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div><div style="font-size:34px;font-weight:900;color:'+fgC+';font-family:\'Courier New\',monospace;line-height:1">'+fg.score+'</div><div style="font-size:9px;color:'+fgC+';font-weight:700">'+a.sent.fgLabel+'</div></div><div style="flex:1"><div style="height:8px;background:linear-gradient(90deg,#00ff88,#ffd700,#ff4444);border-radius:4px;position:relative;margin-bottom:3px"><div style="position:absolute;top:-3px;left:'+fg.score+'%;transform:translateX(-50%);width:3px;height:14px;background:#fff;border-radius:2px"></div></div><div style="display:flex;justify-content:space-between;font-size:7px;color:var(--muted)"><span>FEAR</span><span>NEUTRAL</span><span>GREED</span></div></div></div><div style="font-size:9px;color:#b0c4d8;line-height:1.6;padding:7px;background:var(--bg3);border-radius:5px">'+a.sent.interp+'</div>');
+  const sentEx=fg.score<=25?'<strong style="color:var(--green)">Extreme Fear ('+fg.score+'/100)</strong> &mdash; Investors are panicking. Historically the best buying opportunities occur here. Smart money accumulates while retail flees. Strong contrarian BUY signal.':fg.score<=40?'<strong style="color:var(--green)">Fear ('+fg.score+'/100)</strong> &mdash; Negative sentiment dominates. Retail is under-invested. Recoveries often begin in fear zones. Moderate contrarian buying opportunity.':fg.score<=60?'<strong style="color:var(--gold)">Neutral ('+fg.score+'/100)</strong> &mdash; Balanced sentiment with no extreme bias. Base your entry decision on technicals and fundamentals rather than sentiment alone.':fg.score<=75?'<strong style="color:var(--gold)">Greed ('+fg.score+'/100)</strong> &mdash; Investors are chasing returns. Pullback risk is elevated. Be selective, tighten stops, and avoid FOMO entries.':'<strong style="color:var(--red)">Extreme Greed ('+fg.score+'/100)</strong> &mdash; Market is euphoric and overextended. Institutions distribute into retail buying. High probability of a correction. Protect gains and reduce exposure.';
+  sH('d-sent','<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div><div style="font-size:34px;font-weight:900;color:'+fgC+';font-family:\'Courier New\',monospace;line-height:1">'+fg.score+'</div><div style="font-size:9px;color:'+fgC+';font-weight:700">'+a.sent.fgLabel+'</div></div><div style="flex:1"><div style="height:8px;background:linear-gradient(90deg,#00ff88,#ffd700,#ff4444);border-radius:4px;position:relative;margin-bottom:3px"><div style="position:absolute;top:-3px;left:'+fg.score+'%;transform:translateX(-50%);width:3px;height:14px;background:#fff;border-radius:2px"></div></div><div style="display:flex;justify-content:space-between;font-size:7px;color:var(--muted)"><span>FEAR</span><span>NEUTRAL</span><span>GREED</span></div></div></div><div style="font-size:9px;color:#b0c4d8;line-height:1.6;padding:7px;background:var(--bg3);border-radius:5px">'+sentEx+'</div>');
 
   // News
   const nH=Array.isArray(news)&&news.length?news.slice(0,4).map(n=>'<div class="ni"><div class="nd" style="background:'+(n.sentiment>0?'var(--green)':n.sentiment<0?'var(--red)':'var(--blue)')+'"></div><div><div class="nh" onclick="window.open(\''+n.url+'\',\'_blank\')">'+n.headline+'</div><div class="nm">'+n.source+' \u00b7 '+new Date(n.datetime*1000).toLocaleDateString()+'</div></div></div>').join(''):'<div style="font-size:9px;color:var(--muted)">No recent news</div>';
@@ -842,77 +802,58 @@ function drawGauge(score){
 }
 function drawRing(id,score,color){
   const canvas=G(id);if(!canvas)return;
-  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,60,60);
-  const pct=score/100,cx=30,cy=30,r=24;
-  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='#1a2435';ctx.lineWidth=5;ctx.stroke();
-  ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=5;ctx.lineCap='round';ctx.stroke();
+  canvas.width=60;canvas.height=60;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,60,60);
+  const pct=Math.min(Math.max(score/100,0),1),cx=30,cy=30,r=22;
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle='#1a2e44';ctx.lineWidth=6;ctx.stroke();
+  if(pct>0){ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=6;ctx.lineCap='round';ctx.stroke();}
+  ctx.fillStyle=color;ctx.font='bold 12px monospace';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(score,cx,cy);
 }
 function drawChart(candles,kl){
   const canvas=G('chart');if(!canvas)return;
   const W=canvas.parentElement.clientWidth||400;canvas.width=W;
-  const H=148,pl=6,pr=50,pt=8,pb=28;  // pb=28 leaves room for date labels
-  const ctx=canvas.getContext('2d');
+  const H=152,pl=6,pr=50,pt=8,pb=28;
   canvas.height=H;
-  ctx.clearRect(0,0,W,H);
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,W,H);
   if(!candles.length)return;
   const prices=candles.flatMap(d=>[d.h,d.l]);
   const mn=Math.min(...prices),mx=Math.max(...prices),rng=mx-mn||1;
   const py=v=>pt+((mx-v)/rng)*(H-pt-pb);
   const cw=(W-pl-pr)/candles.length,bw=Math.max(2,cw*.65);
   const ema=[],k=2/51;candles.forEach((d,i)=>ema.push(i===0?d.c:d.c*k+ema[i-1]*(1-k)));
-
-  // Price grid lines
   [mn,mn+rng*.33,mn+rng*.66,mx].forEach(p=>{
     ctx.beginPath();ctx.moveTo(pl,py(p));ctx.lineTo(W-pr,py(p));
     ctx.strokeStyle='#1a2e44';ctx.lineWidth=.5;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='left';
-    ctx.fillText(p.toFixed(p>100?0:2),W-pr+3,py(p)+4);
+    ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='left';ctx.fillText(p.toFixed(p>100?0:2),W-pr+3,py(p)+4);
   });
-
-  // Zone overlays
   const dZ=(h,l,col)=>{if(!h||!l)return;const y1=py(h),y2=py(l);ctx.fillStyle=col+'15';ctx.fillRect(pl,Math.min(y1,y2),W-pl-pr,Math.abs(y2-y1));ctx.strokeStyle=col+'40';ctx.lineWidth=.5;ctx.strokeRect(pl,Math.min(y1,y2),W-pl-pr,Math.abs(y2-y1));};
   dZ(kl.dZH,kl.dZL,'#00ff88');dZ(kl.sZH,kl.sZL,'#ff4444');
-
-  // Candles
   candles.forEach((d,i)=>{
     const x=pl+i*cw+cw/2,isUp=d.c>=d.o,col=isUp?'#00ff88':'#ff4444';
     ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,py(d.h));ctx.lineTo(x,py(d.l));ctx.stroke();
     const by=py(Math.max(d.o,d.c)),bh=Math.max(1,py(Math.min(d.o,d.c))-by);
     ctx.fillStyle=col;ctx.globalAlpha=.85;ctx.fillRect(x-bw/2,by,bw,bh);ctx.globalAlpha=1;
   });
-
-  // EMA line
   ctx.beginPath();ema.forEach((v,i)=>{const x=pl+i*cw+cw/2;i===0?ctx.moveTo(x,py(v)):ctx.lineTo(x,py(v));});
   ctx.strokeStyle='#ffd700';ctx.lineWidth=1.5;ctx.stroke();
-
-  // Date axis — show ~6 evenly spaced date labels
-  const hasDates = candles.some(d=>d.t);
-  const step = Math.max(1, Math.floor(candles.length / 6));
-  ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='center';
+  // Date axis
+  const hasDates=candles.some(d=>d.t);
+  const step=Math.max(1,Math.floor(candles.length/6));
   for(let i=0;i<candles.length;i+=step){
     const x=pl+i*cw+cw/2;
-    let label='';
-    if(hasDates && candles[i].t){
-      const dt=new Date(candles[i].t*1000);
-      label=(dt.getMonth()+1)+'/'+(dt.getDate());
-    } else {
-      // No timestamps — count back from today
-      const dt=new Date();
-      dt.setDate(dt.getDate()-(candles.length-1-i));
-      label=(dt.getMonth()+1)+'/'+(dt.getDate());
-    }
-    // Tick mark
-    ctx.strokeStyle='#1a2e44';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(x,H-pb);ctx.lineTo(x,H-pb+3);ctx.stroke();
-    // Label
-    ctx.fillText(label,x,H-pb+12);
+    let lbl='';
+    if(hasDates&&candles[i].t){const dt=new Date(candles[i].t*1000);lbl=(dt.getMonth()+1)+'/'+(dt.getDate());}
+    else{const dt=new Date();dt.setDate(dt.getDate()-(candles.length-1-i));lbl=(dt.getMonth()+1)+'/'+(dt.getDate());}
+    ctx.strokeStyle='#1a2e44';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,H-pb);ctx.lineTo(x,H-pb+3);ctx.stroke();
+    ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText(lbl,x,H-pb+12);
   }
-  // Axis baseline
-  ctx.strokeStyle='#1a2e44';ctx.lineWidth=.5;
-  ctx.beginPath();ctx.moveTo(pl,H-pb);ctx.lineTo(W-pr,H-pb);ctx.stroke();
-
-  sT('clbl',synthCandles?'ESTIMATED CHART':'DAILY CHART');
-  if(G('clbl'))G('clbl').style.color=synthCandles?'var(--gold)':'#3a6080';
+  ctx.strokeStyle='#1a2e44';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(pl,H-pb);ctx.lineTo(W-pr,H-pb);ctx.stroke();
+  sT('clbl',synthCandles?'ESTIMATED CHART':'DAILY CHART');if(G('clbl'))G('clbl').style.color=synthCandles?'var(--gold)':'#3a6080';
   sT('ccnt',candles.length+(synthCandles?' (est)':' candles'));
 }
 
@@ -959,7 +900,13 @@ async function scanTicker(sym){
     if(hh)bull+=8;if(hl)bull+=6;if(rsi>50&&rsi<70)bull+=8;else if(rsi>80)bull-=10;else if(rsi<40)bull-=6;
     if((quote.d||0)>0)bull+=4;else bull-=4;
     bull=Math.min(Math.max(Math.round(bull),0),100);
-    let bear=100-bull;if(!a200)bear+=5;if(!a50)bear+=4;if(rsi<30)bear+=8;
+    let bear=50;
+    if(!a200)bear+=14;else bear-=10;
+    if(!a50)bear+=12;else bear-=8;
+    if(!a20)bear+=7;else bear-=5;
+    if(!hh)bear+=8;if(!hl)bear+=7;
+    if(rsi<30)bear+=12;else if(rsi<40)bear+=7;else if(rsi>70)bear+=5;else if(rsi>50&&rsi<65)bear-=8;
+    if((quote.d||0)<0)bear+=5;else bear-=4;
     bear=Math.min(Math.max(Math.round(bear),0),100);
     return{sym,price:quote.c,change:quote.d||0,changePct:quote.dp||0,bull,bear,rsi:rsi.toFixed(0)};
   }catch{return null;}
@@ -986,6 +933,30 @@ function goToAnalysis(sym){
 }
 
 // ── INIT ─────────────────────────────────────────────
+async function fetchYahooCandles(sym){
+  const enc=encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo&includePrePost=false');
+  const urls=['https://corsproxy.io/?'+enc,'https://api.allorigins.win/raw?url='+enc];
+  for(const url of urls){
+    try{
+      const r=await fetch(url,{signal:AbortSignal.timeout(7000)});
+      if(!r.ok)continue;
+      const data=await r.json();
+      const res=data?.chart?.result?.[0];
+      if(!res)continue;
+      const ts=res.timestamp,q=res.indicators?.quote?.[0];
+      if(!ts||!q||!q.close)continue;
+      const candles=[];
+      for(let i=0;i<ts.length;i++){
+        if(q.open[i]!=null&&q.high[i]!=null&&q.low[i]!=null&&q.close[i]!=null){
+          candles.push({o:parseFloat(q.open[i].toFixed(2)),h:parseFloat(q.high[i].toFixed(2)),l:parseFloat(q.low[i].toFixed(2)),c:parseFloat(q.close[i].toFixed(2)),v:q.volume?.[i]||0,t:ts[i]});
+        }
+      }
+      if(candles.length>=5){console.log('Yahoo OK:',candles.length,'bars');return candles.slice(-45);}
+    }catch(e){console.warn('Yahoo proxy failed:',e.message);}
+  }
+  return null;
+}
+
 window.addEventListener('load',()=>{
   setupInput();
   if(sessionStorage.getItem('aep_ok')){
