@@ -314,7 +314,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
               <span id="ccnt" style="color:#2a4060;margin-left:auto"></span>
             </div>
             <div style="background:var(--bg1);border-radius:5px;padding:8px 4px;overflow-x:auto">
-              <canvas id="chart" height="130"></canvas>
+              <canvas id="chart" height="148"></canvas>
             </div>
           </div>
           <!-- Fundamentals -->
@@ -506,33 +506,51 @@ async function fetchFG(){
 }
 
 // ── ANALYZE ──────────────────────────────────────────
-// ── YAHOO FINANCE CANDLE FALLBACK ────────────────────
+// ── YAHOO FINANCE CANDLE FALLBACK (via CORS proxy) ───
 async function fetchYahooCandles(sym){
-  try{
-    // Yahoo Finance v8 API — no key needed, CORS allowed from browser
-    const url='https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo&includePrePost=false';
-    const r=await fetch(url,{headers:{'Accept':'application/json'}});
-    if(!r.ok)throw new Error('Yahoo HTTP '+r.status);
-    const data=await r.json();
-    const res=data?.chart?.result?.[0];
-    if(!res)throw new Error('No Yahoo result');
-    const ts=res.timestamp;
-    const q=res.indicators?.quote?.[0];
-    if(!ts||!q||!q.close)throw new Error('No Yahoo quote data');
-    // Build candles array, filtering out null entries (weekends/holidays)
-    const candles=[];
-    for(let i=0;i<ts.length;i++){
-      if(q.open[i]!=null&&q.high[i]!=null&&q.low[i]!=null&&q.close[i]!=null){
-        candles.push({o:q.open[i],h:q.high[i],l:q.low[i],c:q.close[i],v:q.volume?.[i]||0});
+  // Yahoo Finance via CORS proxy — tries 3 proxies in order
+  const encoded = encodeURIComponent(
+    'https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo&includePrePost=false'
+  );
+  const urls = [
+    'https://corsproxy.io/?'+encoded,
+    'https://api.allorigins.win/raw?url='+encoded,
+    'https://thingproxy.freeboard.io/fetch/https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo'
+  ];
+  for(const url of urls){
+    try{
+      const r = await fetch(url, {signal: AbortSignal.timeout(7000)});
+      if(!r.ok) continue;
+      const data = await r.json();
+      const res = data?.chart?.result?.[0];
+      if(!res) continue;
+      const ts  = res.timestamp;
+      const q   = res.indicators?.quote?.[0];
+      if(!ts || !q || !q.close) continue;
+      const candles = [];
+      for(let i=0;i<ts.length;i++){
+        if(q.open[i]!=null && q.high[i]!=null && q.low[i]!=null && q.close[i]!=null){
+          candles.push({
+            o: parseFloat(q.open[i].toFixed(2)),
+            h: parseFloat(q.high[i].toFixed(2)),
+            l: parseFloat(q.low[i].toFixed(2)),
+            c: parseFloat(q.close[i].toFixed(2)),
+            v: q.volume?.[i] || 0,
+            t: ts[i]  // store unix timestamp for date axis
+          });
+        }
       }
+      if(candles.length >= 5){
+        console.log('Yahoo candles OK via '+url.split('?')[0]+': '+candles.length+' bars for '+sym);
+        return candles.slice(-45);
+      }
+    }catch(e){
+      console.warn('Yahoo proxy failed: '+e.message);
+      continue;
     }
-    if(candles.length<5)throw new Error('Insufficient Yahoo candle data');
-    console.log('Yahoo Finance candles loaded: '+candles.length+' for '+sym);
-    return candles.slice(-45);
-  }catch(e){
-    console.warn('Yahoo Finance fallback failed for '+sym+': '+e.message);
-    return null;
   }
+  console.warn('All Yahoo proxies failed for '+sym);
+  return null;
 }
 
 async function doAnalyze(){
@@ -832,30 +850,69 @@ function drawRing(id,score,color){
 function drawChart(candles,kl){
   const canvas=G('chart');if(!canvas)return;
   const W=canvas.parentElement.clientWidth||400;canvas.width=W;
-  const H=130,pl=6,pr=46,pt=8,pb=16;
-  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,W,H);
+  const H=148,pl=6,pr=50,pt=8,pb=28;  // pb=28 leaves room for date labels
+  const ctx=canvas.getContext('2d');
+  canvas.height=H;
+  ctx.clearRect(0,0,W,H);
   if(!candles.length)return;
   const prices=candles.flatMap(d=>[d.h,d.l]);
   const mn=Math.min(...prices),mx=Math.max(...prices),rng=mx-mn||1;
   const py=v=>pt+((mx-v)/rng)*(H-pt-pb);
   const cw=(W-pl-pr)/candles.length,bw=Math.max(2,cw*.65);
   const ema=[],k=2/51;candles.forEach((d,i)=>ema.push(i===0?d.c:d.c*k+ema[i-1]*(1-k)));
+
+  // Price grid lines
   [mn,mn+rng*.33,mn+rng*.66,mx].forEach(p=>{
     ctx.beginPath();ctx.moveTo(pl,py(p));ctx.lineTo(W-pr,py(p));
     ctx.strokeStyle='#1a2e44';ctx.lineWidth=.5;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='left';ctx.fillText(p.toFixed(p>100?0:2),W-pr+3,py(p)+4);
+    ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='left';
+    ctx.fillText(p.toFixed(p>100?0:2),W-pr+3,py(p)+4);
   });
+
+  // Zone overlays
   const dZ=(h,l,col)=>{if(!h||!l)return;const y1=py(h),y2=py(l);ctx.fillStyle=col+'15';ctx.fillRect(pl,Math.min(y1,y2),W-pl-pr,Math.abs(y2-y1));ctx.strokeStyle=col+'40';ctx.lineWidth=.5;ctx.strokeRect(pl,Math.min(y1,y2),W-pl-pr,Math.abs(y2-y1));};
   dZ(kl.dZH,kl.dZL,'#00ff88');dZ(kl.sZH,kl.sZL,'#ff4444');
+
+  // Candles
   candles.forEach((d,i)=>{
     const x=pl+i*cw+cw/2,isUp=d.c>=d.o,col=isUp?'#00ff88':'#ff4444';
     ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,py(d.h));ctx.lineTo(x,py(d.l));ctx.stroke();
     const by=py(Math.max(d.o,d.c)),bh=Math.max(1,py(Math.min(d.o,d.c))-by);
     ctx.fillStyle=col;ctx.globalAlpha=.85;ctx.fillRect(x-bw/2,by,bw,bh);ctx.globalAlpha=1;
   });
+
+  // EMA line
   ctx.beginPath();ema.forEach((v,i)=>{const x=pl+i*cw+cw/2;i===0?ctx.moveTo(x,py(v)):ctx.lineTo(x,py(v));});
   ctx.strokeStyle='#ffd700';ctx.lineWidth=1.5;ctx.stroke();
-  sT('clbl',synthCandles?'ESTIMATED CHART':'DAILY CHART');if(G('clbl'))G('clbl').style.color=synthCandles?'var(--gold)':'#3a6080';
+
+  // Date axis — show ~6 evenly spaced date labels
+  const hasDates = candles.some(d=>d.t);
+  const step = Math.max(1, Math.floor(candles.length / 6));
+  ctx.fillStyle='#4a6480';ctx.font='8px monospace';ctx.textAlign='center';
+  for(let i=0;i<candles.length;i+=step){
+    const x=pl+i*cw+cw/2;
+    let label='';
+    if(hasDates && candles[i].t){
+      const dt=new Date(candles[i].t*1000);
+      label=(dt.getMonth()+1)+'/'+(dt.getDate());
+    } else {
+      // No timestamps — count back from today
+      const dt=new Date();
+      dt.setDate(dt.getDate()-(candles.length-1-i));
+      label=(dt.getMonth()+1)+'/'+(dt.getDate());
+    }
+    // Tick mark
+    ctx.strokeStyle='#1a2e44';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,H-pb);ctx.lineTo(x,H-pb+3);ctx.stroke();
+    // Label
+    ctx.fillText(label,x,H-pb+12);
+  }
+  // Axis baseline
+  ctx.strokeStyle='#1a2e44';ctx.lineWidth=.5;
+  ctx.beginPath();ctx.moveTo(pl,H-pb);ctx.lineTo(W-pr,H-pb);ctx.stroke();
+
+  sT('clbl',synthCandles?'ESTIMATED CHART':'DAILY CHART');
+  if(G('clbl'))G('clbl').style.color=synthCandles?'var(--gold)':'#3a6080';
   sT('ccnt',candles.length+(synthCandles?' (est)':' candles'));
 }
 
