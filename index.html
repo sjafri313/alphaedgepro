@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-6HSKFQYT82"></script>
 <script>
@@ -136,9 +137,96 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.25}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 #dashboard{animation:fadeIn .3s ease}
+
+}
+
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;background:#0b1622;border-bottom:1px solid #1a2e44;padding:0 14px}
+.nav-tab{padding:10px 18px;font-size:10px;font-weight:800;letter-spacing:2px;color:#6b80a0;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Courier New',monospace;white-space:nowrap}
+.nav-tab:hover{color:#c8dff0}
+.nav-tab.active{color:#00a2ff;border-bottom-color:#00a2ff}
+.page{display:none}
+.page.active{display:block}
+
+/* ── SCANNER PAGE ── */
+.scanner-wrap{padding:14px 14px 50px}
+.scanner-header{background:#0b1622;border:1px solid #1a2e44;border-radius:8px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.scan-grid{grid-template-columns:1fr}}
+.scan-panel{background:#0b1622;border:1px solid #1a2e44;border-radius:8px;overflow:hidden}
+.scan-panel-hdr{padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.scan-panel-title{font-size:11px;font-weight:800;letter-spacing:2px}
+.scan-panel-sub{font-size:9px;letter-spacing:1px;margin-top:2px}
+.stock-row{display:flex;align-items:center;padding:10px 14px;border-top:1px solid #0f1e2e;cursor:pointer;transition:background .15s;gap:10px}
+.stock-row:hover{background:#0f1e2e}
+.stock-rank{width:20px;font-size:10px;color:#2a4060;font-weight:700;flex-shrink:0;text-align:center}
+.stock-ticker-wrap{flex:1;min-width:0}
+.stock-ticker{font-size:13px;font-weight:900;font-family:'Courier New',monospace;letter-spacing:1px}
+.stock-name{font-size:9px;color:#6b80a0;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stock-score-wrap{text-align:right;flex-shrink:0}
+.stock-score{font-size:16px;font-weight:900;font-family:'Courier New',monospace}
+.stock-score-lbl{font-size:8px;font-weight:700;letter-spacing:1px;margin-top:1px}
+.stock-price{font-size:11px;font-family:'Courier New',monospace;color:#6b80a0;flex-shrink:0;text-align:right;min-width:60px}
+.stock-chg{font-size:10px;font-weight:700;font-family:'Courier New',monospace;flex-shrink:0;min-width:70px;text-align:right}
+.score-bar-wrap{width:60px;height:4px;background:#0f1e2e;border-radius:2px;overflow:hidden;flex-shrink:0}
+.score-bar-fill{height:100%;border-radius:2px}
+.scan-loading{padding:30px;text-align:center;color:#2a4060;font-size:11px;letter-spacing:2px}
+.scan-refresh-btn{background:#0f1e2e;border:1px solid #1a2e44;border-radius:4px;color:#6b80a0;padding:5px 12px;font-size:9px;cursor:pointer;font-family:'Courier New',monospace;font-weight:700;letter-spacing:1px;transition:all .2s}
+.scan-refresh-btn:hover{color:#00a2ff;border-color:#00a2ff}
+.scan-refresh-btn:disabled{opacity:0.4;cursor:not-allowed}
+.scan-spinner{width:24px;height:24px;border:2px solid #1a2e44;border-top:2px solid #00a2ff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}
+.last-scan-time{font-size:9px;color:#2a4060;letter-spacing:1px}
+
 </style>
 </head>
 <body>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">SIGN IN</div>
+      <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">CREATE ACCOUNT</div>
+    </div>
+
+    <!-- Sign In Form -->
+    <div id="form-signin">
+      <input class="auth-input" id="si-email" type="email" placeholder="Email address" autocomplete="email"/>
+      <input class="auth-input" id="si-password" type="password" placeholder="Password" autocomplete="current-password"/>
+      <div style="text-align:right;margin-bottom:8px">
+        <span onclick="showReset()" style="font-size:9px;color:#6b80a0;cursor:pointer;text-decoration:underline">Forgot password?</span>
+      </div>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="form-signup" style="display:none">
+      <input class="auth-input" id="su-name" type="text" placeholder="Full name"/>
+      <input class="auth-input" id="su-email" type="email" placeholder="Email address" autocomplete="email"/>
+      <input class="auth-input" id="su-password" type="password" placeholder="Password (min 6 characters)" autocomplete="new-password"/>
+      <button class="auth-btn" id="su-btn" onclick="doSignUp()">CREATE ACCOUNT ▶</button>
+    </div>
+
+    <!-- Reset Password -->
+    <div id="form-reset" style="display:none">
+      <div style="font-size:10px;color:#6b80a0;margin-bottom:10px">Enter your email — we'll send a reset link.</div>
+      <input class="auth-input" id="rs-email" type="email" placeholder="Email address"/>
+      <button class="auth-btn" onclick="doReset()">SEND RESET LINK ▶</button>
+      <div style="text-align:center;margin-top:6px">
+        <span onclick="switchTab('signin')" style="font-size:9px;color:#6b80a0;cursor:pointer;text-decoration:underline">Back to sign in</span>
+      </div>
+    </div>
+
+    <div class="auth-divider"><div class="auth-divider-line"></div><span>OR</span><div class="auth-divider-line"></div></div>
+    <button class="auth-google" onclick="doGoogle()">
+      <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      CONTINUE WITH GOOGLE
+    </button>
+
+    <div class="auth-msg" id="auth-msg"></div>
+    <div class="auth-footer">
+      By signing in you agree to our Terms of Service and Privacy Policy.<br/>
+      Free access · No credit card required
+    </div>
+  </div>
+</div>
+
 
 <!-- DISCLAIMER -->
 <div id="disclaimer-modal">
@@ -195,9 +283,23 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
       </div>
       <button class="btn" id="analyze-btn" onclick="doAnalyze()">ANALYZE ▶</button>
       <button class="btn-ghost" onclick="clearKey()">⚙ KEY</button>
+        <span class="user-email" id="user-email-display"></span>
+        <button id="signout-btn" onclick="doSignOut()">SIGN OUT</button>
+      </div>
+
     </div>
   </div>
 
+
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="nav-analysis" onclick="switchPage('analysis')">📊 ANALYSIS</div>
+    <div class="nav-tab" id="nav-scanner" onclick="switchPage('scanner')">🔍 MARKET SCANNER</div>
+  </div>
+
+  <!-- PAGE: ANALYSIS -->
+  <div class="page active" id="page-analysis">
+  <div class="page active" id="page-analysis">
   <!-- EMPTY -->
   <div id="empty-state">
     <div style="font-size:50px;opacity:0.1">◈</div>
@@ -1035,10 +1137,272 @@ function drawChart(candles,kl){
   setTxt('candle-count',`${candles.length} candles${syntheticCandles?' (estimated)':''}`);
 }
 
+
+// ════════════════════════════════════════
+// PAGE NAVIGATION
+// ════════════════════════════════════════
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'scanner' && !scannerRan) runScanner();
+}
+
+// ════════════════════════════════════════
+// SCANNER ENGINE
+// ════════════════════════════════════════
+const SCAN_UNIVERSE = [
+  'AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','JPM','V','MA',
+  'AMD','NFLX','AVGO','CRM','ORCL','ADBE','PYPL','UBER','SHOP','COIN',
+  'BAC','GS','MS','WFC','C','JNJ','PFE','MRK','ABBV','LLY',
+  'XOM','CVX','SLB','EOG','MPC','HD','WMT','COST','TGT','LOW'
+];
+
+let scannerRan = false;
+let scanResults = [];
+
+function calcEMAscan(closes, period) {
+  if (!closes.length) return closes[0] || 0;
+  const k = 2 / (period + 1);
+  let e = closes[0];
+  for (let i = 1; i < closes.length; i++) e = closes[i] * k + e * (1 - k);
+  return e;
+}
+
+function calcRSIscan(closes, period = 14) {
+  if (closes.length < period + 1) return 50;
+  let g = 0, l = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) g += d; else l -= d;
+  }
+  const rs = g / (l || 0.001);
+  return 100 - (100 / (1 + rs));
+}
+
+function scoreScan(quote, candles) {
+  const price = quote.c;
+  const closes = candles.map(c => c.c);
+  const vols = candles.map(c => c.v || 0);
+  const ema20 = calcEMAscan(closes, Math.min(20, closes.length));
+  const ema50 = calcEMAscan(closes, Math.min(50, closes.length));
+  const ema200 = calcEMAscan(closes, Math.min(200, closes.length));
+  const rsi = calcRSIscan(closes);
+  const avgVol = vols.reduce((a, b) => a + b, 0) / (vols.length || 1);
+  const lastVol = vols[vols.length - 1] || 0;
+  const volRatio = avgVol > 0 ? lastVol / avgVol : 1;
+  const last8 = candles.slice(-8);
+  const hh = last8.length > 2 && last8[last8.length-1].h > last8[0].h;
+  const hl = last8.length > 2 && last8[last8.length-1].l > last8[0].l;
+  const a20 = price > ema20, a50 = price > ema50, a200 = price > ema200;
+  const change = quote.d || 0;
+
+  // Bull score (0-100)
+  let bull = 50;
+  if (a200) bull += 12; else bull -= 12;
+  if (a50)  bull += 10; else bull -= 10;
+  if (a20)  bull += 6;  else bull -= 6;
+  if (hh)   bull += 8;
+  if (hl)   bull += 6;
+  if (rsi > 50 && rsi < 70) bull += 8;
+  else if (rsi > 80) bull -= 10;
+  else if (rsi < 40) bull -= 6;
+  if (volRatio > 1.5) bull += 8;
+  else if (volRatio > 1.2) bull += 4;
+  if (change > 0) bull += 4; else bull -= 4;
+  bull = Math.min(Math.max(Math.round(bull), 0), 100);
+
+  // Bear score = inverse of bull with extra weight on bearish signals
+  let bear = 100 - bull;
+  if (!a200) bear += 5;
+  if (!a50)  bear += 4;
+  if (rsi < 30) bear += 8;
+  bear = Math.min(Math.max(Math.round(bear), 0), 100);
+
+  let direction = 'NEUTRAL';
+  if (bull >= 65) direction = 'CALLS';
+  else if (bear >= 65) direction = 'PUTS';
+
+  return { bull, bear, direction, rsi: rsi.toFixed(0), a50, a200, hh, hl, volRatio: volRatio.toFixed(1) };
+}
+
+async function scanTicker(sym) {
+  try {
+    const quote = await apiFetch(`quote?symbol=${sym}`);
+    if (!quote.c || quote.c === 0) return null;
+    const now = Math.floor(Date.now() / 1000), from = now - 86400 * 60;
+    const cdl = await apiFetch(`stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}`).catch(() => ({ s: 'no_data' }));
+    let candles = [];
+    if (cdl.s === 'ok' && Array.isArray(cdl.c) && cdl.c.length >= 5) {
+      candles = cdl.t.map((_, i) => ({ o: cdl.o[i], h: cdl.h[i], l: cdl.l[i], c: cdl.c[i], v: cdl.v[i] }));
+    } else {
+      const p = quote.c;
+      candles = Array.from({ length: 15 }, (_, i) => ({ o: p * 0.99, h: p * 1.01, l: p * 0.98, c: p * 0.995, v: 5e6 }));
+    }
+    const scores = scoreScan(quote, candles);
+    return {
+      sym,
+      price: quote.c,
+      change: quote.d || 0,
+      changePct: quote.dp || 0,
+      ...scores
+    };
+  } catch { return null; }
+}
+
+async function runScanner() {
+  if (!API_KEY) {
+    alert('Please enter your Finnhub API key first (go to Analysis tab).');
+    switchPage('analysis');
+    return;
+  }
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true; btn.textContent = 'SCANNING...';
+  document.getElementById('calls-list').innerHTML = '<div class="scan-loading"><div class="scan-spinner"></div>Scanning ' + SCAN_UNIVERSE.length + ' stocks...</div>';
+  document.getElementById('puts-list').innerHTML = '<div class="scan-loading"><div class="scan-spinner"></div>Analyzing signals...</div>';
+
+  // Render universe pills
+  const uEl = document.getElementById('scan-universe');
+  uEl.innerHTML = SCAN_UNIVERSE.map(t =>
+    `<div style="background:#0f1e2e;border:1px solid #1a2e44;border-radius:3px;padding:3px 8px;font-size:9px;color:#3a6080;font-family:'Courier New',monospace;font-weight:700;cursor:pointer" onclick="goToAnalysis('${t}')">${t}</div>`
+  ).join('');
+
+  // Scan in batches of 5 to respect rate limits
+  const results = [];
+  const batches = [];
+  for (let i = 0; i < SCAN_UNIVERSE.length; i += 5) {
+    batches.push(SCAN_UNIVERSE.slice(i, i + 5));
+  }
+
+  for (const batch of batches) {
+    const batchResults = await Promise.all(batch.map(sym => scanTicker(sym)));
+    batchResults.forEach(r => { if (r) results.push(r); });
+    // Update progress
+    document.getElementById('calls-list').innerHTML =
+      `<div class="scan-loading"><div class="scan-spinner"></div>Scanned ${results.length} / ${SCAN_UNIVERSE.length} stocks...</div>`;
+    await sleep(800); // rate limit buffer
+  }
+
+  scanResults = results;
+  scannerRan = true;
+
+  // Sort: top calls = highest bull score; top puts = highest bear score
+  const topCalls = [...results].filter(r => r.bull >= 50).sort((a, b) => b.bull - a.bull).slice(0, 10);
+  const topPuts  = [...results].filter(r => r.bear >= 50).sort((a, b) => b.bear - a.bear).slice(0, 10);
+
+  renderScanList('calls-list', topCalls, 'calls');
+  renderScanList('puts-list', topPuts, 'puts');
+
+  document.getElementById('scan-time').textContent = '↻ ' + new Date().toLocaleTimeString();
+  btn.disabled = false; btn.textContent = '⟳ SCAN NOW';
+}
+
+function renderScanList(containerId, stocks, type) {
+  const isCalls = type === 'calls';
+  const color = isCalls ? '#00ff88' : '#ff4444';
+  const scoreKey = isCalls ? 'bull' : 'bear';
+  const signal = isCalls ? 'CALLS ↑' : 'PUTS ↓';
+
+  if (!stocks.length) {
+    document.getElementById(containerId).innerHTML =
+      `<div class="scan-loading">No strong ${type} signals found</div>`;
+    return;
+  }
+
+  document.getElementById(containerId).innerHTML = stocks.map((s, i) => {
+    const score = s[scoreKey];
+    const isUp = s.change >= 0;
+    const chgColor = isUp ? '#00ff88' : '#ff4444';
+    const barPct = Math.min(score, 100);
+    return `
+      <div class="stock-row" onclick="goToAnalysis('${s.sym}')">
+        <div class="stock-rank">${i + 1}</div>
+        <div class="stock-ticker-wrap">
+          <div class="stock-ticker" style="color:${color}">${s.sym}</div>
+          <div class="stock-name">${signal} · RSI ${s.rsi}</div>
+        </div>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" style="width:${barPct}%;background:${color}"></div>
+        </div>
+        <div class="stock-score-wrap">
+          <div class="stock-score" style="color:${color}">${score}</div>
+          <div class="stock-score-lbl" style="color:${color}">/ 100</div>
+        </div>
+        <div>
+          <div class="stock-price">$${fmt(s.price)}</div>
+          <div class="stock-chg" style="color:${chgColor}">${isUp?'+':''}${fmt(s.changePct)}%</div>
+        </div>
+        <div style="font-size:14px;color:#2a4060;flex-shrink:0">›</div>
+      </div>`;
+  }).join('');
+}
+
+function goToAnalysis(sym) {
+  switchPage('analysis');
+  document.getElementById('ticker-in').value = sym;
+  doAnalyze();
+}
+
 window.addEventListener('load',()=>{
   if(sessionStorage.getItem('aep_ok')){$('disclaimer-modal').style.display='none';showApiOrApp();}
   window.addEventListener('resize',()=>{if(currentData)requestAnimationFrame(()=>drawChart(currentData.candles,currentData.result.kl));});
 });
 </script>
+
+<script>
+
+</script>
+
+
+  </div><!-- end page-analysis -->
+  <!-- PAGE: SCANNER -->
+  <div class="page" id="page-scanner">
+    <div class="scanner-wrap">
+      <div class="scanner-header">
+        <div>
+          <div style="font-size:15px;font-weight:900;color:#e0eaff;letter-spacing:1px">MARKET SCANNER</div>
+          <div style="font-size:9px;color:#6b80a0;letter-spacing:2px;margin-top:3px">TOP 10 CALLS · TOP 10 PUTS · LIVE SCORED</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="last-scan-time" id="scan-time">Not scanned yet</div>
+          <button class="scan-refresh-btn" id="scan-btn" onclick="runScanner()">⟳ SCAN NOW</button>
+        </div>
+      </div>
+      <div style="background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:9px 14px;margin-bottom:14px;font-size:10px;color:#ffd700">
+        ⚡ Scanner analyzes 40 major S&P 500 stocks using live Finnhub data — scores each on technicals, trend, volume, and RSI — then ranks top CALL and PUT setups. Click any stock to open full analysis.
+      </div>
+      <div class="scan-grid">
+        <div class="scan-panel">
+          <div class="scan-panel-hdr" style="background:rgba(0,255,136,0.06);border-bottom:1px solid #1a2e44">
+            <div>
+              <div class="scan-panel-title" style="color:#00ff88">🟢 TOP 10 CALLS</div>
+              <div class="scan-panel-sub" style="color:#4a7a5a">Highest bullish composite scores</div>
+            </div>
+            <div style="font-size:9px;color:#4a7a5a;font-weight:700">SCORE / SIGNAL</div>
+          </div>
+          <div id="calls-list"><div class="scan-loading"><div class="scan-spinner"></div>Click SCAN NOW to load</div></div>
+        </div>
+        <div class="scan-panel">
+          <div class="scan-panel-hdr" style="background:rgba(255,68,68,0.06);border-bottom:1px solid #1a2e44">
+            <div>
+              <div class="scan-panel-title" style="color:#ff4444">🔴 TOP 10 PUTS</div>
+              <div class="scan-panel-sub" style="color:#7a3030">Highest bearish composite scores</div>
+            </div>
+            <div style="font-size:9px;color:#7a3030;font-weight:700">SCORE / SIGNAL</div>
+          </div>
+          <div id="puts-list"><div class="scan-loading"><div class="scan-spinner"></div>Click SCAN NOW to load</div></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;background:#0b1622;border:1px solid #1a2e44;border-radius:8px;padding:14px 16px">
+        <div style="font-size:9px;color:#6b80a0;letter-spacing:2px;font-weight:800;margin-bottom:8px">SCANNER UNIVERSE — 40 STOCKS MONITORED</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="scan-universe"></div>
+      </div>
+      <div style="text-align:center;margin-top:16px;font-size:9px;color:#1a2e44;line-height:1.8">
+        FOR EDUCATIONAL PURPOSES ONLY · NOT INVESTMENT ADVICE · ALWAYS MANAGE YOUR RISK
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
