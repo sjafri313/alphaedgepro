@@ -506,6 +506,35 @@ async function fetchFG(){
 }
 
 // ── ANALYZE ──────────────────────────────────────────
+// ── YAHOO FINANCE CANDLE FALLBACK ────────────────────
+async function fetchYahooCandles(sym){
+  try{
+    // Yahoo Finance v8 API — no key needed, CORS allowed from browser
+    const url='https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=3mo&includePrePost=false';
+    const r=await fetch(url,{headers:{'Accept':'application/json'}});
+    if(!r.ok)throw new Error('Yahoo HTTP '+r.status);
+    const data=await r.json();
+    const res=data?.chart?.result?.[0];
+    if(!res)throw new Error('No Yahoo result');
+    const ts=res.timestamp;
+    const q=res.indicators?.quote?.[0];
+    if(!ts||!q||!q.close)throw new Error('No Yahoo quote data');
+    // Build candles array, filtering out null entries (weekends/holidays)
+    const candles=[];
+    for(let i=0;i<ts.length;i++){
+      if(q.open[i]!=null&&q.high[i]!=null&&q.low[i]!=null&&q.close[i]!=null){
+        candles.push({o:q.open[i],h:q.high[i],l:q.low[i],c:q.close[i],v:q.volume?.[i]||0});
+      }
+    }
+    if(candles.length<5)throw new Error('Insufficient Yahoo candle data');
+    console.log('Yahoo Finance candles loaded: '+candles.length+' for '+sym);
+    return candles.slice(-45);
+  }catch(e){
+    console.warn('Yahoo Finance fallback failed for '+sym+': '+e.message);
+    return null;
+  }
+}
+
 async function doAnalyze(){
   const sym=G('t-in').value.trim().toUpperCase();
   if(!sym)return;
@@ -528,6 +557,7 @@ async function doAnalyze(){
     ]);
     sT('st','FETCHING CANDLES...');
     const now=Math.floor(Date.now()/1000),from=now-86400*90;
+    // Try Finnhub candles first
     const cdl=await apiFetch('stock/candle?symbol='+sym+'&resolution=D&from='+from+'&to='+now).catch(()=>({s:'no_data'}));
     sT('st','FETCHING NEWS...');
     const today=new Date(),fd=new Date(today-7*86400000);
@@ -536,12 +566,19 @@ async function doAnalyze(){
     const fg=await fetchFG();
     let candles=[];synthCandles=false;
     if(cdl.s==='ok'&&Array.isArray(cdl.c)&&cdl.c.length>=5){
+      // Finnhub returned real candles
       candles=cdl.t.map((_,i)=>({o:cdl.o[i],h:cdl.h[i],l:cdl.l[i],c:cdl.c[i],v:cdl.v[i]})).slice(-45);
     }else{
-      synthCandles=true;
-      const p=quote.c,pc=quote.pc||p*.99,dr=(p-pc)/24;
-      candles=Array.from({length:25},(_,i)=>{const b=pc+dr*i,v=b*.012;return{o:b-v*.3+Math.random()*v*.6,h:b+v*.5+Math.random()*v*.4,l:b-v*.5-Math.random()*v*.4,c:b+Math.random()*v*.4-v*.2,v:8e6+Math.random()*4e6};});
-      candles[24].c=quote.c;
+      // Finnhub free tier returned no_data — try Yahoo Finance as fallback
+      sT('st','FETCHING CHART DATA (YAHOO FINANCE)...');
+      candles=await fetchYahooCandles(sym);
+      if(!candles||candles.length<5){
+        // Final fallback: synthetic candles
+        synthCandles=true;
+        const p=quote.c,pc=quote.pc||p*.99,dr=(p-pc)/24;
+        candles=Array.from({length:25},(_,i)=>{const b=pc+dr*i,v=b*.012;return{o:b-v*.3+Math.random()*v*.6,h:b+v*.5+Math.random()*v*.4,l:b-v*.5-Math.random()*v*.4,c:b+Math.random()*v*.4-v*.2,v:8e6+Math.random()*4e6};});
+        candles[24].c=quote.c;
+      }
     }
     const res=buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,MACRO,news);
     curData={res,candles};
