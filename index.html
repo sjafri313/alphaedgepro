@@ -227,17 +227,26 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
   max-width:520px;width:100%;padding:24px;max-height:90vh;overflow-y:auto
 }
 .dm-check{
-  display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;
-  padding:12px;background:var(--bg3);border-radius:6px;
-  border:1px solid var(--border);cursor:pointer;
-  font-size:11px;color:#8aa0b8;line-height:1.7;
-  -webkit-user-select:none;user-select:none
+  display:flex;gap:12px;align-items:center;margin-bottom:10px;
+  padding:14px 12px;background:var(--bg3);border-radius:8px;
+  border:2px solid var(--border);cursor:pointer;
+  -webkit-user-select:none;user-select:none;
+  transition:border-color .2s,background .2s;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:rgba(0,0,0,0)
 }
-.dm-check input{
-  margin-top:2px;accent-color:var(--green);
-  width:20px;height:20px;flex-shrink:0;cursor:pointer;
-  min-width:20px
+.dm-check:active{background:#1a2e44}
+.dm-check.checked{border-color:var(--green);background:rgba(0,255,136,0.08)}
+.dm-box-check{
+  width:28px;height:28px;border-radius:6px;border:2px solid var(--muted);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;color:transparent;
+  background:var(--bg1);transition:all .2s;min-width:28px
 }
+.dm-check.checked .dm-box-check{
+  background:var(--green);border-color:var(--green);color:#000;font-size:16px
+}
+.dm-check-text{font-size:11px;color:#8aa0b8;line-height:1.7}
 #accept-btn{
   width:100%;padding:16px;background:linear-gradient(135deg,#00a2ff,#0047ff);
   border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:900;
@@ -292,14 +301,28 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
   <div class="dm-box">
     <div style="font-size:16px;font-weight:900;color:var(--gold);letter-spacing:2px;margin-bottom:3px">⚠ IMPORTANT DISCLOSURE</div>
     <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-bottom:14px">READ BEFORE USING ALPHA EDGE PRO</div>
-    <div style="font-size:10px;color:#8aa0b8;line-height:1.9;margin-bottom:14px">
+    <div style="font-size:10px;color:#8aa0b8;line-height:1.9;margin-bottom:16px">
       <strong>Alpha Edge Pro is for informational and educational purposes only.</strong> Not a registered investment adviser. All signals are algorithmic outputs and do NOT constitute investment advice.<br><br>
       <strong>Trading stocks and options involves substantial risk of loss.</strong> You may lose more than you invest. Always consult a licensed financial professional before trading.
     </div>
-    <label class="dm-check" for="chk1"><input type="checkbox" id="chk1" onchange="checkAll()"/>I understand this is <strong>informational only</strong> and NOT investment advice.</label>
-    <label class="dm-check" for="chk2"><input type="checkbox" id="chk2" onchange="checkAll()"/>I accept <strong>full responsibility</strong> for my trading decisions and understand the risk of loss.</label>
-    <label class="dm-check" for="chk3"><input type="checkbox" id="chk3" onchange="checkAll()"/>I am <strong>18 or older</strong> and agree to the Terms of Service.</label>
-    <button id="accept-btn" onclick="acceptDisclaimer()">I UNDERSTAND — ENTER ALPHA EDGE PRO</button>
+
+    <div id="cb-row-1" class="dm-check" onclick="tapCheck(1)">
+      <div class="dm-box-check" id="cb-icon-1">☐</div>
+      <div class="dm-check-text">I understand this is <strong>informational only</strong> and NOT investment advice.</div>
+    </div>
+    <div id="cb-row-2" class="dm-check" onclick="tapCheck(2)">
+      <div class="dm-box-check" id="cb-icon-2">☐</div>
+      <div class="dm-check-text">I accept <strong>full responsibility</strong> for my trading decisions and understand the risk of loss.</div>
+    </div>
+    <div id="cb-row-3" class="dm-check" onclick="tapCheck(3)">
+      <div class="dm-box-check" id="cb-icon-3">☐</div>
+      <div class="dm-check-text">I am <strong>18 or older</strong> and agree to the Terms of Service.</div>
+    </div>
+
+    <button id="accept-btn" onclick="acceptDisclaimer()">CHECK ALL BOXES TO CONTINUE (0/3)</button>
+    <div style="margin-top:10px;font-size:8px;color:#2a4060;text-align:center;line-height:1.8">
+      For educational purposes only · Not investment advice · Always manage your risk
+    </div>
   </div>
 </div>
 
@@ -622,21 +645,37 @@ const setHTML=(id,h)=>{const e=$(id);if(e)e.innerHTML=h;};
 const sColor=s=>s>=70?'var(--green)':s>=45?'var(--gold)':'var(--red)';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-// ── DISCLAIMER ─────────────────────────────────────
-function toggle(id){const c=$(id);c.checked=!c.checked;checkAll();}
-function checkAll(){
-  const checked=['chk1','chk2','chk3'].filter(id=>$(id).checked).length;
-  const ok = checked === 3;
-  $('accept-btn').classList.toggle('active', ok);
-  $('accept-btn').textContent = ok 
-    ? 'I UNDERSTAND — ENTER ALPHA EDGE PRO' 
-    : 'CHECK ALL BOXES TO CONTINUE ('+checked+'/3)';
-}
-function acceptDisclaimer(){
-  // Double-check all boxes are checked
-  if(!['chk1','chk2','chk3'].every(id=>$(id).checked)){
-    checkAll(); return;
+// ── DISCLAIMER — custom checkboxes, no native input ──
+const cbState = {1:false, 2:false, 3:false};
+
+function tapCheck(n){
+  cbState[n] = !cbState[n];
+  const row = $('cb-row-'+n);
+  const icon = $('cb-icon-'+n);
+  if(cbState[n]){
+    row.classList.add('checked');
+    icon.textContent = '✓';
+  } else {
+    row.classList.remove('checked');
+    icon.textContent = '☐';
   }
+  const checked = Object.values(cbState).filter(Boolean).length;
+  const btn = $('accept-btn');
+  if(checked === 3){
+    btn.textContent = 'I UNDERSTAND — ENTER ALPHA EDGE PRO ▶';
+    btn.classList.add('active');
+  } else {
+    btn.textContent = 'CHECK ALL BOXES TO CONTINUE ('+checked+'/3)';
+    btn.classList.remove('active');
+  }
+}
+
+function checkAll(){}
+function toggle(){}
+
+function acceptDisclaimer(){
+  const checked = Object.values(cbState).filter(Boolean).length;
+  if(checked < 3){ return; }
   $('disclaimer-modal').style.display='none';
   sessionStorage.setItem('aep_ok','1');
   showApiOrApp();
