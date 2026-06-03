@@ -653,13 +653,24 @@ function buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,macro,news)
   const {sH,sL}=findSwings(candles);
   const snap=(v,b)=>Math.round(v/b)*b;
   const b=price>500?5:price>100?2.5:price>50?1:0.5;
-  const nd=[...sL].sort((a,z)=>Math.abs(a-price)-Math.abs(z-price))[0]||snap(price*.955,b);
-  const ns=[...sH].sort((a,z)=>Math.abs(a-price)-Math.abs(z-price))[0]||snap(price*1.04,b);
   const atr=tech.atr;
-  const dZL=snap(nd-atr*.3,b),dZH=snap(nd+atr*.5,b),sZL=snap(ns-atr*.3,b),sZH=snap(ns+atr*.5,b);
-  const mdL=snap(price*.875,b),mdH=snap(price*.895,b),kL=snap(price*.925,b),e50=parseFloat(tech.e50.toFixed(2));
-  const entry=(dZL+dZH)/2,stop=snap(dZL-atr*.5,b),risk=Math.max(entry-stop,price*.008);
-  const tp1=snap(entry+risk*1.5,b),tp2=snap(entry+risk*2.8,b),tp3=snap(entry+risk*4.5,b);
+  // Only use swing levels within 8% of current price — avoids stale levels 40%+ away
+  const maxDist=price*0.08;
+  const nearSL=[...sL].filter(v=>Math.abs(v-price)<=maxDist).sort((a,z)=>Math.abs(a-price)-Math.abs(z-price))[0];
+  const nearSH=[...sH].filter(v=>Math.abs(v-price)<=maxDist).sort((a,z)=>Math.abs(a-price)-Math.abs(z-price))[0];
+  // Price-anchored levels — always relative to current price
+  const stop  = snap(price - atr*2.0, b);           // Stop = 2 ATR below current price
+  const entry = snap(price - atr*0.3, b);           // Entry = slight pullback from current price
+  const risk  = Math.max(entry - stop, price*0.01); // Minimum 1% risk
+  const tp1   = snap(entry + risk*1.5, b);
+  const tp2   = snap(entry + risk*2.8, b);
+  const tp3   = snap(entry + risk*4.5, b);
+  // Chart zones — use nearby swing levels if available, else ATR-based from price
+  const dZL=nearSL?snap(nearSL-atr*.2,b):snap(price-atr*1.2,b);
+  const dZH=nearSL?snap(nearSL+atr*.3,b):snap(price-atr*0.6,b);
+  const sZL=nearSH?snap(nearSH-atr*.2,b):snap(price+atr*0.6,b);
+  const sZH=nearSH?snap(nearSH+atr*.3,b):snap(price+atr*1.2,b);
+  const mdL=snap(price*.945,b),mdH=snap(price*.960,b),kL=snap(price-atr*3,b),e50=parseFloat(tech.e50.toFixed(2));
   const sb=price>500?10:price>100?5:2.5,atm=Math.round(price/sb)*sb;
   return{sym,name:profile?.name||sym,ind:profile?.finnhubIndustry||'',logo:profile?.logo||'',mcap:profile?.marketCapitalization||0,
     price,change,changePct,open:quote.o,high:quote.h,low:quote.l,prev:quote.pc,
@@ -668,7 +679,8 @@ function buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,macro,news)
     direction:tech.direction,trend:tech.trend,structure:tech.structure,
     fund,tech,sent,mac,
     kl:{sZH,sZL,dZH,dZL,mdH,mdL,kL,e50,e20:tech.e20},
-    pLow:dZL,pHigh:dZH,sLow:snap(price*1.005,b),sHigh:snap(price*1.015,b),
+    pLow:snap(price-atr*.5,b),pHigh:snap(price-atr*.1,b),
+    sLow:snap(price+atr*.2,b),sHigh:snap(price+atr*.6,b),
     tp1,tp2,tp3,stop,entry,
     stopLbl:'Break & close below $'+fmt(stop)+' = Setup Invalid',
     runner:'Let it ride if breaks above $'+fmt(tp3),
