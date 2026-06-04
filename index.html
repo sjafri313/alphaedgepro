@@ -304,10 +304,10 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           </div>
           <!-- 4 Score Cards -->
           <div class="g4" style="margin-bottom:10px">
-            <div class="sc" id="sc-f"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">FUNDAMENTAL</div><canvas id="ring-f" width="60" height="60"></canvas><div class="sn" id="sc-fn" style="margin-top:3px"></div><div class="sl" id="sc-fl"></div><div class="ss" id="sc-fs"></div></div>
-            <div class="sc" id="sc-t"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">TECHNICAL</div><canvas id="ring-t" width="60" height="60"></canvas><div class="sn" id="sc-tn" style="margin-top:3px"></div><div class="sl" id="sc-tl"></div><div class="ss" id="sc-ts"></div></div>
-            <div class="sc" id="sc-s"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">SENTIMENT</div><canvas id="ring-s" width="60" height="60"></canvas><div class="sn" id="sc-sn" style="margin-top:3px"></div><div class="sl" id="sc-sl"></div><div class="ss" id="sc-ss"></div></div>
-            <div class="sc" id="sc-m"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">MACRO</div><canvas id="ring-m" width="60" height="60"></canvas><div class="sn" id="sc-mn" style="margin-top:3px"></div><div class="sl" id="sc-ml"></div><div class="ss" id="sc-ms"></div></div>
+            <div class="sc" id="sc-f"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">FUNDAMENTAL</div><canvas id="ring-f" width="90" height="90"></canvas><div class="sn" id="sc-fn" style="display:none"></div><div class="sl" id="sc-fl"></div><div class="ss" id="sc-fs"></div></div>
+            <div class="sc" id="sc-t"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">TECHNICAL</div><canvas id="ring-t" width="90" height="90"></canvas><div class="sn" id="sc-tn" style="display:none"></div><div class="sl" id="sc-tl"></div><div class="ss" id="sc-ts"></div></div>
+            <div class="sc" id="sc-s"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">SENTIMENT</div><canvas id="ring-s" width="90" height="90"></canvas><div class="sn" id="sc-sn" style="display:none"></div><div class="sl" id="sc-sl"></div><div class="ss" id="sc-ss"></div></div>
+            <div class="sc" id="sc-m"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">MACRO</div><canvas id="ring-m" width="90" height="90"></canvas><div class="sn" id="sc-mn" style="display:none"></div><div class="sl" id="sc-ml"></div><div class="ss" id="sc-ms"></div></div>
           </div>
           <!-- Chart -->
           <div class="card" style="margin-bottom:10px">
@@ -794,13 +794,13 @@ function updPrice(q){
 }
 
 function renderScoreCard(id,score,sub){
-  const color=sC(score),prefix={'f':'Fundamental','t':'Technical','s':'Sentiment','m':'Macro'}[id]||id;
+  const color=score>=70?'#00ff88':score>=45?'#ffd700':'#ff4444';
   const el=G('sc-'+id);
   if(el)el.style.borderColor=color;
   sT('sc-'+id+'n',score);if(G('sc-'+id+'n'))G('sc-'+id+'n').style.color=color;
   sT('sc-'+id+'l',score>=70?'BUY':score>=45?'WATCH':'CAUTION');if(G('sc-'+id+'l'))G('sc-'+id+'l').style.color=color;
   sT('sc-'+id+'s',sub);
-  drawRing('ring-'+id,score,color);
+  drawRing('ring-'+id,score);
 }
 
 function renderDash(a,candles,news,fg){
@@ -929,16 +929,29 @@ function drawGauge(score){
   sT('gscore',s+'/100');if(G('gscore'))G('gscore').style.color=color;
   sT('glbl',s>=70?'HIGH PROBABILITY':s>=45?'MODERATE':'LOW');if(G('glbl'))G('glbl').style.color=color;
 }
-function drawRing(id,score,color){
+function drawRing(id,score){
   const canvas=G(id);if(!canvas)return;
-  canvas.width=60;canvas.height=60;
+  const W=90;
+  canvas.width=W;canvas.height=W;
   const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,60,60);
-  const pct=Math.min(Math.max(score/100,0),1),cx=30,cy=30,r=22;
+  ctx.clearRect(0,0,W,W);
+  const cx=W/2,cy=W/2,r=W*0.37,lw=W*0.115;
+  const pct=Math.min(Math.max(score/100,0),1);
+  // Solid color: green >=70, gold 45-69, red <45
+  const color=score>=70?'#00ff88':score>=45?'#ffd700':'#ff4444';
+  // Background track
   ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
-  ctx.strokeStyle='#1a2e44';ctx.lineWidth=6;ctx.stroke();
-  if(pct>0){ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=6;ctx.lineCap='round';ctx.stroke();}
-  ctx.fillStyle=color;ctx.font='bold 12px monospace';
+  ctx.strokeStyle='#1a2e44';ctx.lineWidth=lw;ctx.lineCap='round';ctx.stroke();
+  // Colored arc — starts at 12 o'clock, fills clockwise
+  if(pct>0){
+    const startA=-Math.PI/2;
+    const endA=startA+pct*Math.PI*2;
+    ctx.beginPath();ctx.arc(cx,cy,r,startA,endA);
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';ctx.stroke();
+  }
+  // Score in center
+  ctx.fillStyle=color;
+  ctx.font='900 '+Math.round(W*0.20)+'px \'Courier New\',monospace';
   ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillText(score,cx,cy);
 }
