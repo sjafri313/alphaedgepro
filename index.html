@@ -324,6 +324,11 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           </div>
           <!-- Fundamentals -->
           <div class="card"><div class="ct" style="color:var(--green)">Fundamental Health</div><div id="d-fund"></div></div>
+          <!-- Intrinsic Value -->
+          <div class="card" id="iv-card" style="display:none">
+            <div class="ct" style="color:var(--gold)">Intrinsic Value Analysis</div>
+            <div id="d-iv"></div>
+          </div>
           <!-- Macro -->
           <div class="card"><div class="ct" style="color:#ff8c00">Macro Environment</div><div class="g4" id="d-mac" style="margin-bottom:8px"></div><div id="d-mac-i" style="font-size:10px;color:#b0c4d8;line-height:1.6;padding-top:7px;border-top:1px solid var(--border)"></div></div>
           <!-- Sentiment + News -->
@@ -599,7 +604,12 @@ function scoreFund(earnings,metrics){
   mg=m['netProfitMarginAnnual']||m['netProfitMarginTTM'];if(mg!=null){if(mg>0.2)sc+=10;else if(mg>0.1)sc+=5;else if(mg<0)sc-=10;}
   roe=m['roeTTM']||m['roeRfy'];if(roe!=null){if(roe>15)sc+=8;else if(roe<5)sc-=5;}
   de=m['totalDebt/totalEquityAnnual'];if(de!=null){if(de>2)sc-=8;else if(de<0.5)sc+=5;}
-  return{score:Math.min(Math.max(Math.round(sc),0),100),pe,rg,mg,roe,de,earnings};
+  // Extra fields for intrinsic value calculation
+  const eps=m['epsNormalizedAnnual']||m['epsTTM']||null;
+  const bvps=m['bookValuePerShareAnnual']||m['bookValuePerShareQuarterly']||null;
+  const fwd_g=rg!=null?(rg*100):null; // use revenue growth as growth proxy
+  return{score:Math.min(Math.max(Math.round(sc),0),100),pe,rg,mg,roe,de,eps,bvps,fwd_g,earnings};
+
 }
 function scoreTech(price,candles,quote){
   let sc=50;const cl=candles.map(c=>c.c);const vl=candles.map(c=>c.v||0);
@@ -637,6 +647,65 @@ function scoreMacro(macro){
   if(macro.unemployment<4.5){sc+=5;notes.push('Strong labor market');}else if(macro.unemployment>6){sc-=8;}
   return{score:Math.min(Math.max(Math.round(sc),0),100),notes};
 }
+
+// ── INTRINSIC VALUE CALCULATION ──────────────────────────
+function calcIntrinsicValue(price, fund, macro) {
+  const results = {};
+  const pe   = fund.pe;
+  const eps  = fund.eps;
+  const bvps = fund.bvps;
+  const g    = fund.fwd_g != null ? Math.min(Math.max(fund.fwd_g, 0), 30) : null; // cap growth 0-30%
+  const roe  = fund.roe;
+
+  // ── METHOD 1: Benjamin Graham Formula ──
+  // IV = EPS × (8.5 + 2G) × 4.4 / Y
+  // Y = current AAA bond yield proxy (Fed rate + 1.5% spread)
+  if (eps != null && eps > 0 && g != null) {
+    const Y = Math.max(macro.fedRate + 1.5, 4.5); // AAA bond yield proxy
+    const graham = eps * (8.5 + 2 * g) * 4.4 / Y;
+    results.graham = parseFloat(graham.toFixed(2));
+  }
+
+  // ── METHOD 2: P/E Based Fair Value ──
+  // Use sector-average P/E of 18 as fair value baseline
+  // Adjust up for high growth, down for low growth
+  if (eps != null && eps > 0) {
+    const fairPE = g != null
+      ? Math.min(Math.max(15 + (g - 8) * 0.8, 8), 40) // growth-adjusted fair P/E
+      : 18; // default if no growth data
+    results.pe_based = parseFloat((eps * fairPE).toFixed(2));
+    results.fairPE   = parseFloat(fairPE.toFixed(1));
+  }
+
+  // ── METHOD 3: Price-to-Book Fair Value ──
+  // Fair P/B = ROE / Cost of Equity (assume 10% cost of equity)
+  if (bvps != null && bvps > 0 && roe != null && roe > 0) {
+    const coe     = 10; // cost of equity %
+    const fairPB  = Math.min(Math.max(roe / coe, 0.5), 8);
+    results.pb_based = parseFloat((bvps * fairPB).toFixed(2));
+    results.fairPB   = parseFloat(fairPB.toFixed(1));
+  }
+
+  // ── AVERAGE ESTIMATE ──
+  const vals = [results.graham, results.pe_based, results.pb_based].filter(v => v != null && v > 0);
+  if (vals.length > 0) {
+    results.average = parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2));
+    results.margin  = parseFloat(((results.average - price) / price * 100).toFixed(1));
+    // Signal: >15% undervalued = strong buy, 5-15% = buy, ±5% = fair, <-5% = overvalued
+    if      (results.margin >= 15) results.signal = 'UNDERVALUED';
+    else if (results.margin >= 5)  results.signal = 'SLIGHT UNDERVALUE';
+    else if (results.margin >= -5) results.signal = 'FAIRLY VALUED';
+    else if (results.margin >= -15)results.signal = 'SLIGHT OVERVALUE';
+    else                           results.signal = 'OVERVALUED';
+    results.signalColor = results.margin >= 10 ? 'var(--green)'
+      : results.margin >= 0  ? '#88cc44'
+      : results.margin >= -10? 'var(--gold)'
+      : 'var(--red)';
+  }
+
+  return results;
+}
+
 function buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,macro,news){
   const price=quote.c;
   const change=parseFloat(((quote.d!=null?quote.d:(quote.c-quote.pc))||0).toFixed(2));
@@ -672,12 +741,13 @@ function buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,macro,news)
   const sZH=nearSH?snap(nearSH+atr*.3,b):snap(price+atr*1.2,b);
   const mdL=snap(price*.945,b),mdH=snap(price*.960,b),kL=snap(price-atr*3,b),e50=parseFloat(tech.e50.toFixed(2));
   const sb=price>500?10:price>100?5:2.5,atm=Math.round(price/sb)*sb;
+  const iv=calcIntrinsicValue(price,fund,macro);
   return{sym,name:profile?.name||sym,ind:profile?.finnhubIndustry||'',logo:profile?.logo||'',mcap:profile?.marketCapitalization||0,
     price,change,changePct,open:quote.o,high:quote.h,low:quote.l,prev:quote.pc,
     quoteTime:quote.t?new Date(quote.t*1000).toLocaleTimeString():null,
     masterSignal:ms,signalClass:mc,signalSub:msub,composite:comp,
     direction:tech.direction,trend:tech.trend,structure:tech.structure,
-    fund,tech,sent,mac,
+    fund,tech,sent,mac,iv,
     kl:{sZH,sZL,dZH,dZL,mdH,mdL,kL,e50,e20:tech.e20},
     pLow:snap(price-atr*.5,b),pHigh:snap(price-atr*.1,b),
     sLow:snap(price+atr*.2,b),sHigh:snap(price+atr*.6,b),
@@ -767,6 +837,53 @@ function renderDash(a,candles,news,fg){
     return'<div class="ei"><span>'+(e.period||'')+' Q'+(e.quarter||'?')+' \u00b7 EPS $'+fmt(e.actual,2)+' vs $'+fmt(e.estimate,2)+(sur?' ('+sur+'%)':'')+'</span><span class="'+(beat?'bb':'mb2')+'">'+(beat?'\u2713 BEAT':'\u2717 MISS')+'</span></div>';
   }).join(''):'<div style="font-size:9px;color:var(--muted);padding:4px 0">No earnings data</div>';
   sH('d-fund','<div class="g2"><div>'+mRI('P/E Ratio','Price-to-Earnings: how much investors pay per dollar of earnings. Below 25 is attractive; above 50 may be overvalued.',f.pe?fmt(f.pe,1):'--',f.pe&&f.pe<25?'var(--green)':f.pe&&f.pe>50?'var(--red)':'var(--text)')+mRI('Rev Growth','Revenue Growth: year-over-year sales increase. Above 10% signals strong momentum; negative means business is shrinking.',f.rg!=null?(f.rg*100).toFixed(1)+'%':'--',f.rg>0.1?'var(--green)':f.rg<0?'var(--red)':'var(--gold)')+mRI('Net Margin','Net Profit Margin: percentage of revenue kept as profit. Above 10% is healthy; above 20% is excellent.',f.mg!=null?(f.mg*100).toFixed(1)+'%':'--',f.mg>0.1?'var(--green)':f.mg<0?'var(--red)':'var(--gold)')+mRI('ROE','Return on Equity: how efficiently management generates profit from shareholders money. Above 15% is strong; below 5% is weak.',f.roe!=null?fmt(f.roe,1)+'%':'--',f.roe>15?'var(--green)':f.roe<5?'var(--red)':'var(--gold)')+mRI('Debt/Equity','Debt relative to shareholders equity. Below 0.5 is conservative; above 2.0 means highly leveraged with significant risk.',f.de!=null?fmt(f.de,2):'--',f.de!=null&&f.de<0.5?'var(--green)':f.de>2?'var(--red)':'var(--gold)')+mRI('Fund Score','Composite score 0-100 blending earnings, revenue growth, margins, ROE, and balance sheet health.',f.score+'/100',sC(f.score))+'</div><div><div style="font-size:8px;color:var(--muted);font-weight:800;letter-spacing:1px;margin-bottom:5px">EARNINGS HISTORY</div>'+epsH+'</div></div>');
+
+  // Intrinsic Value
+  const ivCard=G('iv-card');
+  if(a.iv && a.iv.average){
+    if(ivCard) ivCard.style.display='block';
+    const iv=a.iv;
+    const hasGraham = iv.graham!=null;
+    const hasPE     = iv.pe_based!=null;
+    const hasPB     = iv.pb_based!=null;
+    const mos       = iv.margin;
+    const mosColor  = iv.signalColor;
+    const mosSign   = mos>=0?'+':'';
+    sH('d-iv',`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:28px;font-weight:900;color:${mosColor};font-family:'Courier New',monospace;line-height:1">$${fmt(iv.average)}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px">Average Intrinsic Value</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:900;color:${mosColor};font-family:'Courier New',monospace">${mosSign}${fmt(mos,1)}%</div>
+          <div style="font-size:9px;font-weight:800;color:${mosColor};letter-spacing:1px">${iv.signal}</div>
+          <div style="font-size:8px;color:var(--muted);margin-top:2px">vs market price $${fmt(a.price)}</div>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--bg3);border-radius:3px;margin-bottom:10px;overflow:hidden">
+        <div style="height:100%;border-radius:3px;background:${mosColor};width:${Math.min(Math.max((iv.average/a.price)*100,10),160)}%;transition:width .5s"></div>
+      </div>
+      ${mRI('Graham Formula','Benjamin Graham: IV = EPS × (8.5 + 2×Growth) × 4.4 / Bond Yield. Classic value investing formula from Security Analysis.',hasGraham?'$'+fmt(iv.graham):'Insufficient data',hasGraham?(iv.graham>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
+      ${mRI('P/E Fair Value','Fair value using growth-adjusted P/E multiple. Fair P/E = 15 + (Growth - 8) × 0.8, then multiplied by EPS.',hasPE?'$'+fmt(iv.pe_based)+' ('+iv.fairPE+'× EPS)':'Insufficient data',hasPE?(iv.pe_based>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
+      ${mRI('P/B Fair Value','Fair value using ROE-based Price-to-Book. Fair P/B = ROE ÷ Cost of Equity (10%), then multiplied by Book Value Per Share.',hasPB?'$'+fmt(iv.pb_based)+' ('+iv.fairPB+'× Book)':'Insufficient data',hasPB?(iv.pb_based>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
+      ${mRI('Margin of Safety','The discount (or premium) of the stock price vs estimated intrinsic value. Above 15% is a strong value signal.',mosSign+fmt(mos,1)+'%',mosColor)}
+      <div style="margin-top:10px;padding:9px 10px;background:var(--bg3);border-radius:6px;border-left:3px solid ${mosColor};font-size:9px;color:#b0c4d8;line-height:1.7">
+        ${mos>=15?'<strong style="color:var(--green)">Strong value opportunity</strong> — stock is trading significantly below estimated intrinsic value. Multiple methods agree the stock is cheap relative to fundamentals.'
+        :mos>=5?'<strong style="color:#88cc44">Mild value opportunity</strong> — stock appears modestly undervalued. Consider alongside technical setup and sentiment before entering.'
+        :mos>=-5?'<strong style="color:var(--gold)">Fairly valued</strong> — market price is close to estimated intrinsic value. No significant margin of safety — rely on technical momentum for timing.'
+        :mos>=-15?'<strong style="color:var(--gold)">Slight premium</strong> — stock is trading modestly above estimated intrinsic value. Requires strong growth expectations to justify current price.'
+        :'<strong style="color:var(--red)">Significant premium</strong> — stock is trading well above estimated intrinsic value. High expectations are priced in — limited margin of safety.'}
+      </div>
+      <div style="margin-top:8px;font-size:8px;color:#2a4060;line-height:1.7">
+        &#9432; Intrinsic value is an estimate using Graham Formula, growth-adjusted P/E, and ROE-based P/B methods.
+        These are starting points for research — not guarantees. Growth assumptions significantly affect results.
+        Always combine with technical analysis and your own due diligence.
+      </div>
+    `);
+  } else {
+    if(ivCard) ivCard.style.display='none';
+  }
 
   // Macro
   sH('d-mac',mMI(MACRO.cpi+'%','CPI',MACRO.cpiTrend,MACRO.cpi<3?'var(--green)':MACRO.cpi>5?'var(--red)':'var(--gold)','Consumer Price Index: measures inflation. Below 2.5% is ideal for stocks; above 5% risks Fed tightening and valuation compression.')+mMI(MACRO.fedRate+'%','FED RATE',MACRO.fedTrend,MACRO.fedRate<3?'var(--green)':MACRO.fedRate>5?'var(--red)':'var(--gold)','Federal Reserve rate: low rates boost stock valuations; high rates compress P/E multiples and increase borrowing costs for companies.')+mMI(MACRO.pmi+'','PMI',MACRO.pmiTrend,MACRO.pmi>52?'var(--green)':MACRO.pmi<49?'var(--red)':'var(--gold)','Purchasing Managers Index: above 50 means economic expansion; below 50 signals contraction and potential recession risk.')+mMI(MACRO.unemployment+'%','UNEMP',MACRO.unemploymentTrend,MACRO.unemployment<4.5?'var(--green)':MACRO.unemployment>6?'var(--red)':'var(--gold)','Unemployment rate: below 4.5% signals a strong labor market; rising above 6% indicates economic deterioration and reduced consumer spending.'));
