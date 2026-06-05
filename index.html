@@ -136,6 +136,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
 .spin{width:20px;height:20px;border:2px solid var(--border);border-top:2px solid var(--blue);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px}
 .sc-btn{background:rgba(0,162,255,0.1);border:1px solid rgba(0,162,255,0.3);border-radius:4px;color:var(--blue);padding:6px 12px;font-size:9px;cursor:pointer;font-family:'Courier New',monospace;font-weight:700;letter-spacing:1px;touch-action:manipulation}
 .sc-btn:disabled{opacity:.4;cursor:not-allowed}
+.pc-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:8px;font-weight:800;letter-spacing:1px;border:1px solid;flex-shrink:0}
 .sc-tm{font-size:8px;color:#2a4060;letter-spacing:1px}
 .dfoot{background:rgba(255,68,68,0.04);border:1px solid rgba(255,68,68,0.15);border-radius:6px;padding:10px 12px;margin-top:12px;font-size:8px;color:#7a5050;line-height:1.8}
 .qb{background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--muted);padding:5px 10px;font-size:10px;cursor:pointer;font-family:'Courier New',monospace;font-weight:700;letter-spacing:1px;touch-action:manipulation}
@@ -368,20 +369,20 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           </div>
         </div>
         <div style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold)">
-          &#9889; Scans 40 major stocks using live Finnhub data. Scores on RSI &middot; EMA &middot; Trend &middot; Volume. Click any row to open full analysis.
+          &#9889; Scans 100 S&P 500 stocks using live Finnhub data. Scores on RSI &middot; EMA &middot; Trend &middot; Volume &middot; Put/Call Ratio. Click any row to open full analysis.
         </div>
         <div class="sg">
           <div class="sp">
             <div class="sp-hdr" style="background:rgba(0,255,136,0.05);border-bottom:1px solid var(--border)">
               <div><div style="font-size:10px;font-weight:800;color:var(--green);letter-spacing:1px">&#128994; TOP 10 CALLS</div><div style="font-size:8px;color:#4a7a5a;margin-top:1px">Highest bull scores</div></div>
-              <div style="font-size:8px;color:#4a7a5a;font-weight:700">SCORE</div>
+              <div style="font-size:8px;color:#4a7a5a;font-weight:700">SCORE &nbsp; P/C</div>
             </div>
             <div id="calls-list"><div class="se"><div class="spin"></div>Tap SCAN NOW</div></div>
           </div>
           <div class="sp">
             <div class="sp-hdr" style="background:rgba(255,68,68,0.05);border-bottom:1px solid var(--border)">
               <div><div style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:1px">&#128308; TOP 10 PUTS</div><div style="font-size:8px;color:#7a3030;margin-top:1px">Highest bear scores</div></div>
-              <div style="font-size:8px;color:#7a3030;font-weight:700">SCORE</div>
+              <div style="font-size:8px;color:#7a3030;font-weight:700">SCORE &nbsp; P/C</div>
             </div>
             <div id="puts-list"><div class="se"><div class="spin"></div>Tap SCAN NOW</div></div>
           </div>
@@ -1050,7 +1051,30 @@ async function scanTicker(sym){
     if(rsi<30)bear+=12;else if(rsi<40)bear+=7;else if(rsi>70)bear+=5;else if(rsi>50&&rsi<65)bear-=8;
     if((quote.d||0)<0)bear+=5;else bear-=4;
     bear=Math.min(Math.max(Math.round(bear),0),100);
-    return{sym,price:quote.c,change:quote.d||0,changePct:quote.dp||0,bull,bear,rsi:rsi.toFixed(0)};
+    // Fetch put/call ratio from Finnhub options chain (free tier)
+    let pcRatio=null,pcLabel='',pcColor='var(--muted)';
+    try{
+      const exp=new Date();exp.setDate(exp.getDate()+30);
+      const expStr=exp.toISOString().split('T')[0];
+      const opts=await apiFetch('stock/option-chain?symbol='+sym+'&expirationDate='+expStr).catch(()=>null);
+      if(opts&&opts.data&&opts.data.length>0){
+        let totalCalls=0,totalPuts=0;
+        opts.data.forEach(exp=>{
+          (exp.options?.CALL||[]).forEach(o=>{totalCalls+=(o.volume||0);});
+          (exp.options?.PUT||[]).forEach(o=>{totalPuts+=(o.volume||0);});
+        });
+        if(totalCalls>0||totalPuts>0){
+          pcRatio=totalCalls>0?parseFloat((totalPuts/totalCalls).toFixed(2)):null;
+          if(pcRatio!==null){
+            if(pcRatio<0.7){pcLabel='BULLISH';pcColor='var(--green)';}
+            else if(pcRatio<1.0){pcLabel='NEUTRAL';pcColor='var(--muted)';}
+            else if(pcRatio<1.5){pcLabel='BEARISH';pcColor='var(--gold)';}
+            else{pcLabel='VERY BEARISH';pcColor='var(--red)';}
+          }
+        }
+      }
+    }catch{}
+    return{sym,price:quote.c,change:quote.d||0,changePct:quote.dp||0,bull,bear,rsi:rsi.toFixed(0),pcRatio,pcLabel,pcColor};
   }catch{return null;}
 }
 function renderScanList(id,stocks,type){
@@ -1060,10 +1084,11 @@ function renderScanList(id,stocks,type){
     const score=s[sk],isUp=s.change>=0,cc=isUp?'#00ff88':'#ff4444';
     return'<div class="sr" onclick="goToAnalysis(\''+s.sym+'\')">'+
       '<div class="srk">'+(i+1)+'</div>'+
-      '<div style="flex:1;min-width:0"><div class="stk" style="color:'+color+'">'+s.sym+'</div><div class="snm">RSI '+s.rsi+' \u00b7 '+(isCalls?'CALLS \u2191':'PUTS \u2193')+'</div></div>'+
+      '<div style="flex:1;min-width:0"><div class="stk" style="color:'+color+'">'+s.sym+'</div><div class="snm">RSI '+s.rsi+' \u00b7 '+(isCalls?'CALLS \u2191':'PUTS \u2193')+(s.pcRatio==null?' \u00b7 <span style="color:#2a4060">P/C loading</span>':'')+'</div></div>'+
       '<div class="sbb"><div class="sbf" style="width:'+score+'%;background:'+color+'"></div></div>'+
       '<div class="ssc" style="color:'+color+'">'+score+'</div>'+
       '<div class="spw"><div class="spr">$'+fmt(s.price)+'</div><div class="sch" style="color:'+cc+'">'+(isUp?'+':'')+fmt(s.changePct)+'%</div></div>'+
+      (s.pcRatio!=null?'<div style="text-align:center;flex-shrink:0;min-width:42px"><div class="pc-badge" style="color:'+s.pcColor+';border-color:'+s.pcColor+'">'+s.pcLabel+'</div><div style="font-size:7px;color:var(--muted);margin-top:1px">P/C '+s.pcRatio+'</div></div>':'')+
       '<div style="font-size:12px;color:#2a4060;flex-shrink:0;margin-left:2px">\u203a</div>'+
     '</div>';
   }).join(''));
