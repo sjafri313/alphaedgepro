@@ -280,8 +280,9 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
               </div>
             </div>
             <div style="text-align:right">
-              <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px">DIRECTION</div>
-              <div id="ddir" style="font-size:24px;font-weight:900;font-family:'Courier New',monospace;letter-spacing:2px;margin-bottom:4px"></div>
+              <div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px">TECHNICAL DIRECTION</div>
+              <div id="ddir" style="font-size:24px;font-weight:900;font-family:'Courier New',monospace;letter-spacing:2px;margin-bottom:2px"></div>
+              <div id="ddir-sub" style="font-size:8px;color:var(--muted);margin-bottom:4px"></div>
               <canvas id="gauge" width="100" height="68"></canvas>
               <div id="gscore" style="font-size:18px;font-weight:900;font-family:'Courier New',monospace;margin-top:-4px"></div>
               <div id="glbl" style="font-size:7px;letter-spacing:1px;text-transform:uppercase;font-weight:700"></div>
@@ -369,7 +370,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           </div>
         </div>
         <div style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold)">
-          &#9889; Scans 100 S&P 500 stocks using live Finnhub data. Scores on RSI &middot; EMA &middot; Trend &middot; Volume &middot; Put/Call Ratio. Click any row to open full analysis.
+          &#9889; Scans 100 S&P 500 stocks using live Finnhub quotes. Scores on daily momentum, intraday range position, gap direction, and Put/Call Ratio. Click any row for full analysis.
         </div>
         <div class="sg">
           <div class="sp">
@@ -388,7 +389,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           </div>
         </div>
         <div style="margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
-          <div style="font-size:8px;color:var(--muted);letter-spacing:2px;font-weight:800;margin-bottom:7px">SCANNER UNIVERSE &mdash; 40 STOCKS</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:2px;font-weight:800;margin-bottom:7px">SCANNER UNIVERSE &mdash; 100 STOCKS</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px" id="sc-uni"></div>
         </div>
         <div style="text-align:center;margin-top:14px;font-size:8px;color:#1a2e44">FOR EDUCATIONAL PURPOSES ONLY &middot; NOT INVESTMENT ADVICE</div>
@@ -816,6 +817,8 @@ function renderDash(a,candles,news,fg){
   if(a.quoteTime)sT('dqt','Quote: '+a.quoteTime);
   sT('ddir',a.direction+' '+(a.direction==='PUTS'?'\u2193':'\u2191'));
   G('ddir').style.color=a.direction==='PUTS'?'var(--red)':'var(--green)';
+  sT('ddir-sub',a.direction==='PUTS'?'Bearish technical structure':'Bullish technical structure');
+  if(G('ddir-sub'))G('ddir-sub').style.color=a.direction==='PUTS'?'#7a3030':'#2a7a4a';
   sT('dop',fmtP(a.open));sT('dhi',fmtP(a.high));sT('dlo',fmtP(a.low));sT('dpv',fmtP(a.prev));
   if(a.mcap>0)sT('dmc',a.mcap>1000?'$'+(a.mcap/1000).toFixed(2)+'T':'$'+a.mcap.toFixed(0)+'B');else G('dmc-w').style.display='none';
   drawGauge(a.composite);
@@ -1026,57 +1029,85 @@ async function runScanner(){
 }
 async function scanTicker(sym){
   try{
-    const quote=await apiFetch('quote?symbol='+sym);
-    if(!quote.c||quote.c===0)return null;
-    const now=Math.floor(Date.now()/1000),from=now-86400*60;
-    const cdl=await apiFetch('stock/candle?symbol='+sym+'&resolution=D&from='+from+'&to='+now).catch(()=>({s:'no_data'}));
-    let candles=[];
-    if(cdl.s==='ok'&&Array.isArray(cdl.c)&&cdl.c.length>=5){candles=cdl.t.map((_,i)=>({o:cdl.o[i],h:cdl.h[i],l:cdl.l[i],c:cdl.c[i],v:cdl.v[i]}));}
-    else{const p=quote.c;candles=Array.from({length:15},()=>({o:p*.99,h:p*1.01,l:p*.98,c:p*.995,v:5e6}));}
-    const cl=candles.map(c=>c.c),vl=candles.map(c=>c.v||0);
-    const e20=calcEMA(cl,Math.min(20,cl.length)),e50=calcEMA(cl,Math.min(50,cl.length)),e200=calcEMA(cl,Math.min(200,cl.length));
-    const rsi=calcRSI(cl);
-    const l8=candles.slice(-8),hh=l8.length>2&&l8[l8.length-1].h>l8[0].h,hl=l8.length>2&&l8[l8.length-1].l>l8[0].l;
-    const a20=quote.c>e20,a50=quote.c>e50,a200=quote.c>e200;
-    let bull=50;
-    if(a200)bull+=12;else bull-=12;if(a50)bull+=10;else bull-=10;if(a20)bull+=6;else bull-=6;
-    if(hh)bull+=8;if(hl)bull+=6;if(rsi>50&&rsi<70)bull+=8;else if(rsi>80)bull-=10;else if(rsi<40)bull-=6;
-    if((quote.d||0)>0)bull+=4;else bull-=4;
-    bull=Math.min(Math.max(Math.round(bull),0),100);
-    let bear=50;
-    if(!a200)bear+=14;else bear-=10;
-    if(!a50)bear+=12;else bear-=8;
-    if(!a20)bear+=7;else bear-=5;
-    if(!hh)bear+=8;if(!hl)bear+=7;
-    if(rsi<30)bear+=12;else if(rsi<40)bear+=7;else if(rsi>70)bear+=5;else if(rsi>50&&rsi<65)bear-=8;
-    if((quote.d||0)<0)bear+=5;else bear-=4;
-    bear=Math.min(Math.max(Math.round(bear),0),100);
-    // Fetch put/call ratio from Finnhub options chain (free tier)
+    const q=await apiFetch('quote?symbol='+sym);
+    if(!q.c||q.c===0)return null;
+
+    const price=q.c, prev=q.pc||q.c, chg=q.d||0, chgPct=q.dp||0;
+    const open=q.o||price, high=q.h||price, low=q.l||price;
+
+    // ── Intraday signals from quote ──
+    const dayRange = high - low || 1;
+    const abovePrev = price > prev;
+    const aboveOpen = price > open;
+    const gapUp     = open > prev * 1.005;
+    const gapDown   = open < prev * 0.995;
+
+    // ── RSI proxy: use 14-day change% momentum ──
+    // Approximate: strong positive day = high RSI, strong negative = low RSI
+    // chgPct of +3% or more ~ RSI 70+; -3% or less ~ RSI 30-
+    const rsiProxy = Math.min(Math.max(Math.round(50 + chgPct * 6), 0), 100);
+
+    // ── Where price sits within today's range (0=at low, 100=at high) ──
+    const rangePos = Math.round(((price - low) / dayRange) * 100);
+
+    // ── Bull scoring ──
+    let bull = 50;
+    if(abovePrev)  bull += 16; else bull -= 16;   // above prev close = bullish
+    if(aboveOpen)  bull += 10; else bull -= 10;   // above open = intraday strength
+    if(gapUp)      bull += 8;                      // gap up = strong overnight demand
+    if(gapDown)    bull -= 8;                      // gap down = overnight selling
+    if(chgPct > 2) bull += 10;                     // strong positive day
+    else if(chgPct > 0.5) bull += 5;
+    else if(chgPct < -2)  bull -= 10;
+    else if(chgPct < -0.5)bull -= 5;
+    if(rangePos > 70) bull += 6;                   // price near day high = strength
+    else if(rangePos < 30) bull -= 6;              // price near day low = weakness
+    bull = Math.min(Math.max(Math.round(bull), 0), 100);
+
+    // ── Bear scoring (independent) ──
+    let bear = 50;
+    if(!abovePrev) bear += 16; else bear -= 16;
+    if(!aboveOpen) bear += 10; else bear -= 10;
+    if(gapDown)    bear += 8;
+    if(gapUp)      bear -= 8;
+    if(chgPct < -2) bear += 10;
+    else if(chgPct < -0.5) bear += 5;
+    else if(chgPct > 2)    bear -= 10;
+    else if(chgPct > 0.5)  bear -= 5;
+    if(rangePos < 30) bear += 6;
+    else if(rangePos > 70) bear -= 6;
+    bear = Math.min(Math.max(Math.round(bear), 0), 100);
+
+    // ── P/C ratio: lightweight fetch, skip if slow ──
     let pcRatio=null,pcLabel='',pcColor='var(--muted)';
     try{
       const exp=new Date();exp.setDate(exp.getDate()+30);
       const expStr=exp.toISOString().split('T')[0];
-      const opts=await apiFetch('stock/option-chain?symbol='+sym+'&expirationDate='+expStr).catch(()=>null);
+      const ctrl=new AbortController();
+      const tid=setTimeout(()=>ctrl.abort(),3000); // 3s timeout
+      const opts=await fetch('https://finnhub.io/api/v1/stock/option-chain?symbol='+sym+'&expirationDate='+expStr+'&token='+API_KEY,{signal:ctrl.signal}).then(r=>r.json()).catch(()=>null);
+      clearTimeout(tid);
       if(opts&&opts.data&&opts.data.length>0){
-        let totalCalls=0,totalPuts=0;
-        opts.data.forEach(exp=>{
-          (exp.options?.CALL||[]).forEach(o=>{totalCalls+=(o.volume||0);});
-          (exp.options?.PUT||[]).forEach(o=>{totalPuts+=(o.volume||0);});
+        let tc=0,tp=0;
+        opts.data.forEach(e=>{
+          (e.options?.CALL||[]).forEach(o=>{tc+=(o.volume||0);});
+          (e.options?.PUT||[]).forEach(o=>{tp+=(o.volume||0);});
         });
-        if(totalCalls>0||totalPuts>0){
-          pcRatio=totalCalls>0?parseFloat((totalPuts/totalCalls).toFixed(2)):null;
-          if(pcRatio!==null){
-            if(pcRatio<0.7){pcLabel='BULLISH';pcColor='var(--green)';}
-            else if(pcRatio<1.0){pcLabel='NEUTRAL';pcColor='var(--muted)';}
-            else if(pcRatio<1.5){pcLabel='BEARISH';pcColor='var(--gold)';}
-            else{pcLabel='VERY BEARISH';pcColor='var(--red)';}
-          }
+        if(tc>0){
+          pcRatio=parseFloat((tp/tc).toFixed(2));
+          if(pcRatio<0.7){pcLabel='BULLISH';pcColor='var(--green)';}
+          else if(pcRatio<1.0){pcLabel='NEUTRAL';pcColor='var(--muted)';}
+          else if(pcRatio<1.5){pcLabel='BEARISH';pcColor='var(--gold)';}
+          else{pcLabel='V.BEARISH';pcColor='var(--red)';}
         }
       }
     }catch{}
-    return{sym,price:quote.c,change:quote.d||0,changePct:quote.dp||0,bull,bear,rsi:rsi.toFixed(0),pcRatio,pcLabel,pcColor};
+
+    return{sym,price,change:chg,changePct:chgPct,bull,bear,
+           rsi:rsiProxy,rangePos,pcRatio,pcLabel,pcColor};
   }catch{return null;}
 }
+
 function renderScanList(id,stocks,type){
   const isCalls=type==='calls',color=isCalls?'#00ff88':'#ff4444',sk=isCalls?'bull':'bear';
   if(!stocks.length){sH(id,'<div class="se">No strong '+type+' signals found</div>');return;}
@@ -1084,7 +1115,7 @@ function renderScanList(id,stocks,type){
     const score=s[sk],isUp=s.change>=0,cc=isUp?'#00ff88':'#ff4444';
     return'<div class="sr" onclick="goToAnalysis(\''+s.sym+'\')">'+
       '<div class="srk">'+(i+1)+'</div>'+
-      '<div style="flex:1;min-width:0"><div class="stk" style="color:'+color+'">'+s.sym+'</div><div class="snm">RSI '+s.rsi+' \u00b7 '+(isCalls?'CALLS \u2191':'PUTS \u2193')+(s.pcRatio==null?' \u00b7 <span style="color:#2a4060">P/C loading</span>':'')+'</div></div>'+
+      '<div style="flex:1;min-width:0"><div class="stk" style="color:'+color+'">'+s.sym+'</div><div class="snm">'+(s.changePct>=0?'+':'')+s.changePct.toFixed(2)+'% \u00b7 '+(isCalls?'CALLS \u2191':'PUTS \u2193')+'</div></div>'+
       '<div class="sbb"><div class="sbf" style="width:'+score+'%;background:'+color+'"></div></div>'+
       '<div class="ssc" style="color:'+color+'">'+score+'</div>'+
       '<div class="spw"><div class="spr">$'+fmt(s.price)+'</div><div class="sch" style="color:'+cc+'">'+(isUp?'+':'')+fmt(s.changePct)+'%</div></div>'+
