@@ -403,7 +403,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
 'use strict';
 const SP500=['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','BRK.B','AVGO','JPM','LLY','UNH','V','XOM','MA','COST','HD','PG','JNJ','ABBV','MRK','BAC','CRM','ORCL','CVX','WMT','KO','AMD','PEP','TMO','NFLX','ADBE','GS','MS','BLK','DE','AXP','GILD','T','VRTX','ISRG','C','NOW','ADI','PLD','REGN','CI','BKNG','AMAT','LRCX','SO','DUK','FCX','SLB','LOW','BA','SCHW','CAT','UPS','QCOM','HON','AMGN','SPGI','INTU','WFC','IBM','NEE','PM','MCD','ACN','TXN'];
 const SCAN=['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','JPM','V','MA','AMD','NFLX','AVGO','CRM','ORCL','ADBE','BAC','GS','MS','WFC','C','JNJ','PFE','MRK','ABBV','LLY','XOM','CVX','SLB','EOG','HD','WMT','COST','TGT','LOW','UNH','UNP','CAT','DE','HON','RTX','LMT','GE','MMM','ITW','ETN','INTC','QCOM','TXN','AMAT','LRCX','KLAC','MU','SQ','COIN','SHOP','UBER','SNAP','RBLX','DIS','CMCSA','VZ','TMUS','SBUX','MCD','CMG','HLT','MAR','CCL','DAL','UAL','AAL','LUV','BA','GD','NOC','LHX','TDG','PYPL','LYFT','PINS','EA','CI','HUM','CVS','BIIB','REGN','VRTX','GILD','BMY','ZTS','ISRG','SYK','BSX','MDT','ABT','TMO','DHR','IDXX'];
-const MACRO={cpi:3.4,cpiTrend:'&darr;',fedRate:5.25,fedTrend:'&rarr;',pmi:51.3,pmiTrend:'&uarr;',unemployment:3.9,unemploymentTrend:'&rarr;'};
+const MACRO={cpi:3.5,cpiTrend:'&darr;',fedRate:3.63,fedTrend:'&rarr;',pmi:53.3,pmiTrend:'&darr;',unemployment:4.2,unemploymentTrend:'&rarr;',asOf:'Jun 2026',live:false};
 let API_KEY='',curData=null,synthCandles=false,refTimer=null,scanRan=false;
 const G=id=>document.getElementById(id);
 const fmt=(n,d=2)=>(n!=null&&!isNaN(n))?Number(n).toFixed(d):'--';
@@ -518,6 +518,51 @@ async function fetchFG(){
 }
 
 // ── ANALYZE ──────────────────────────────────────────
+// ── LIVE MACRO DATA (FRED, no key required) ─────────
+// FEDFUNDS = effective fed funds rate (monthly)
+// CPIAUCSL&units=pc1 = CPI % change from year ago
+// UNRATE = unemployment rate
+// PMI not available on FRED (ISM licensing) — kept as dated constant
+async function fetchMacro(){
+  if(MACRO.live)return;
+  const prox=u=>['https://corsproxy.io/?'+encodeURIComponent(u),'https://api.allorigins.win/raw?url='+encodeURIComponent(u)];
+  async function getCSV(url){
+    for(const p of prox(url)){
+      try{
+        const r=await fetch(p,{signal:AbortSignal.timeout(6000)});
+        if(!r.ok)continue;
+        const t=await r.text();
+        if(t&&t.length>20&&t.toUpperCase().indexOf('DATE')>-1)return t;
+      }catch(e){}
+    }
+    return null;
+  }
+  function lastVals(csv){
+    const rows=csv.trim().split(/\r?\n/).slice(1)
+      .map(l=>l.split(','))
+      .filter(r=>r.length>=2&&r[1]!=='.'&&r[1]!==''&&!isNaN(parseFloat(r[1])));
+    if(!rows.length)return null;
+    const latest=parseFloat(rows[rows.length-1][1]);
+    const prev=rows.length>1?parseFloat(rows[rows.length-2][1]):latest;
+    return[prev,latest,rows[rows.length-1][0]];
+  }
+  const tr=(p,l)=>l<p-0.05?'&darr;':l>p+0.05?'&uarr;':'&rarr;';
+  try{
+    const base='https://fred.stlouisfed.org/graph/fredgraph.csv?id=';
+    const [fedC,cpiC,unC]=await Promise.all([
+      getCSV(base+'FEDFUNDS'),
+      getCSV(base+'CPIAUCSL&units=pc1'),
+      getCSV(base+'UNRATE')
+    ]);
+    let ok=0;
+    if(fedC){const v=lastVals(fedC);if(v&&v[1]>0&&v[1]<20){MACRO.fedRate=parseFloat(v[1].toFixed(2));MACRO.fedTrend=tr(v[0],v[1]);ok++;}}
+    if(cpiC){const v=lastVals(cpiC);if(v&&v[1]>-5&&v[1]<25){MACRO.cpi=parseFloat(v[1].toFixed(1));MACRO.cpiTrend=tr(v[0],v[1]);ok++;}}
+    if(unC){const v=lastVals(unC);if(v&&v[1]>0&&v[1]<30){MACRO.unemployment=parseFloat(v[1].toFixed(1));MACRO.unemploymentTrend=tr(v[0],v[1]);MACRO.asOf=v[2];ok++;}}
+    if(ok>0){MACRO.live=true;console.log('Macro live via FRED: '+ok+'/3 series updated, as of '+MACRO.asOf);}
+    else console.warn('Macro fetch: no series updated — using baseline (Jun 2026)');
+  }catch(e){console.warn('Macro fetch failed — using baseline values:',e.message);}
+}
+
 async function doAnalyze(){
   const sym=G('t-in').value.trim().toUpperCase();
   if(!sym)return;
@@ -528,6 +573,8 @@ async function doAnalyze(){
   G('ls').style.display='flex';setLive('loading');
   if(refTimer)clearTimeout(refTimer);
   try{
+    sT('st','UPDATING MACRO DATA...');
+    await fetchMacro();
     sT('st','FETCHING LIVE QUOTE...');
     const quote=await apiFetch('quote?symbol='+sym);
     if(!quote.c||quote.c===0)throw new Error('No data for "'+sym+'". Check the ticker symbol.');
@@ -589,8 +636,33 @@ function schedRef(sym){
 
 // ── TECHNICALS ───────────────────────────────────────
 function calcEMA(d,p){const k=2/(p+1);let e=d[0]||0;for(let i=1;i<d.length;i++)e=d[i]*k+e*(1-k);return e;}
-function calcRSI(c,p=14){if(c.length<p+1)return 50;let g=0,l=0;for(let i=c.length-p;i<c.length;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else l-=d;}const rs=g/(l||.001);return 100-(100/(1+rs));}
-function calcATR(c,p=14){if(c.length<2)return c[0]?.h-c[0]?.l||1;const t=c.slice(-p).map((v,i,a)=>{if(i===0)return v.h-v.l;const pv=a[i-1];return Math.max(v.h-v.l,Math.abs(v.h-pv.c),Math.abs(v.l-pv.c));});return t.reduce((a,b)=>a+b,0)/t.length;}
+function calcRSI(c,p=14){
+  // Wilder's RSI — seed with simple avg of first p deltas, then Wilder smoothing
+  if(c.length<p+1)return 50;
+  let g=0,l=0;
+  for(let i=1;i<=p;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else l-=d;}
+  let ag=g/p,al=l/p;
+  for(let i=p+1;i<c.length;i++){
+    const d=c[i]-c[i-1];
+    ag=(ag*(p-1)+(d>0?d:0))/p;
+    al=(al*(p-1)+(d<0?-d:0))/p;
+  }
+  if(al===0)return 100;
+  return 100-(100/(1+ag/al));
+}
+function calcATR(c,p=14){
+  // Wilder's ATR — TR over full series w/ real prev closes, seed SMA, Wilder smoothing
+  if(c.length<2)return (c[0]?(c[0].h-c[0].l):1)||1;
+  const tr=[];
+  for(let i=1;i<c.length;i++){
+    const pv=c[i-1];
+    tr.push(Math.max(c[i].h-c[i].l,Math.abs(c[i].h-pv.c),Math.abs(c[i].l-pv.c)));
+  }
+  if(tr.length<p)return tr.reduce((a,b)=>a+b,0)/tr.length;
+  let atr=tr.slice(0,p).reduce((a,b)=>a+b,0)/p;
+  for(let i=p;i<tr.length;i++)atr=(atr*(p-1)+tr[i])/p;
+  return atr;
+}
 function findSwings(c){const n=c.length,sH=[],sL=[];for(let i=2;i<n-2;i++){if(c[i].h>c[i-1].h&&c[i].h>c[i-2].h&&c[i].h>c[i+1].h&&c[i].h>c[i+2].h)sH.push(c[i].h);if(c[i].l<c[i-1].l&&c[i].l<c[i-2].l&&c[i].l<c[i+1].l&&c[i].l<c[i+2].l)sL.push(c[i].l);}return{sH,sL};}
 
 // ── SCORING ──────────────────────────────────────────
@@ -891,7 +963,7 @@ function renderDash(a,candles,news,fg){
 
   // Macro
   sH('d-mac',mMI(MACRO.cpi+'%','CPI',MACRO.cpiTrend,MACRO.cpi<3?'var(--green)':MACRO.cpi>5?'var(--red)':'var(--gold)','Consumer Price Index: measures inflation. Below 2.5% is ideal for stocks; above 5% risks Fed tightening and valuation compression.')+mMI(MACRO.fedRate+'%','FED RATE',MACRO.fedTrend,MACRO.fedRate<3?'var(--green)':MACRO.fedRate>5?'var(--red)':'var(--gold)','Federal Reserve rate: low rates boost stock valuations; high rates compress P/E multiples and increase borrowing costs for companies.')+mMI(MACRO.pmi+'','PMI',MACRO.pmiTrend,MACRO.pmi>52?'var(--green)':MACRO.pmi<49?'var(--red)':'var(--gold)','Purchasing Managers Index: above 50 means economic expansion; below 50 signals contraction and potential recession risk.')+mMI(MACRO.unemployment+'%','UNEMP',MACRO.unemploymentTrend,MACRO.unemployment<4.5?'var(--green)':MACRO.unemployment>6?'var(--red)':'var(--gold)','Unemployment rate: below 4.5% signals a strong labor market; rising above 6% indicates economic deterioration and reduced consumer spending.'));
-  sT('d-mac-i',a.mac.notes.join(' \u00b7 '));
+  sT('d-mac-i',a.mac.notes.join(' \u00b7 ')+(MACRO.live?' \u00b7 CPI/Fed/Unemp live via FRED \u00b7 PMI '+'monthly (ISM)':' \u00b7 Data as of '+MACRO.asOf));
 
   // Sentiment
   const fgC=fg.score<=40?'var(--green)':fg.score>=75?'var(--red)':'var(--gold)';
