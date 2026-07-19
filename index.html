@@ -774,7 +774,7 @@ async function doAnalyze(){
       apiFetch('stock/metric?symbol='+sym+'&metric=all').catch(()=>({}))
     ]);
     sT('st','FETCHING CANDLES...');
-    const now=Math.floor(Date.now()/1000),from=now-86400*90;
+    const now=Math.floor(Date.now()/1000),from=now-86400*340; // ~230 trading days -> real 200 EMA, not truncated
     const cdl=await apiFetch('stock/candle?symbol='+sym+'&resolution=D&from='+from+'&to='+now).catch(()=>({s:'no_data'}));
     sT('st','FETCHING NEWS...');
     const today=new Date(),fd=new Date(today-7*86400000);
@@ -783,7 +783,7 @@ async function doAnalyze(){
     const fg=await fetchFG();
     let candles=[];synthCandles=false;
     if(cdl.s==='ok'&&Array.isArray(cdl.c)&&cdl.c.length>=5){
-      candles=cdl.t.map((_,i)=>({o:cdl.o[i],h:cdl.h[i],l:cdl.l[i],c:cdl.c[i],v:cdl.v[i]})).slice(-45);
+      candles=cdl.t.map((_,i)=>({o:cdl.o[i],h:cdl.h[i],l:cdl.l[i],c:cdl.c[i],v:cdl.v[i]})); // full history kept for accurate 200 EMA
     }else{
       sT('st','LOADING CHART (YAHOO FINANCE)...');
       const yc=await fetchYahooCandles(sym);
@@ -797,8 +797,9 @@ async function doAnalyze(){
       }
     }
     const res=buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,MACRO,news);
-    curData={res,candles};
-    renderDash(res,candles,news,fg);
+    const chartCandles=candles.slice(-90); // full history used for scoring; only recent 90 shown on chart
+    curData={res,candles:chartCandles};
+    renderDash(res,chartCandles,news,fg);
     logSignal(res);
     G('upd-lbl').textContent='\u21bb '+new Date().toLocaleTimeString();
     G('ls').style.display='none';G('dash').style.display='block';setLive('live');
@@ -1413,7 +1414,7 @@ async function fetchYahooCandles(sym){
           candles.push({o:parseFloat(q.open[i].toFixed(2)),h:parseFloat(q.high[i].toFixed(2)),l:parseFloat(q.low[i].toFixed(2)),c:parseFloat(q.close[i].toFixed(2)),v:q.volume?.[i]||0,t:ts[i]});
         }
       }
-      if(candles.length>=5){console.log('Yahoo OK:',candles.length,'bars');return candles.slice(-45);}
+      if(candles.length>=5){console.log('Yahoo OK:',candles.length,'bars');return candles;} // full history kept for accurate 200 EMA
     }catch(e){console.warn('Yahoo proxy failed:',e.message);}
   }
   return null;
