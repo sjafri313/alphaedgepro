@@ -501,20 +501,53 @@ function setupInput(){
 function qp(sym){G('t-in').value=sym;G('sugs').style.display='none';doAnalyze();}
 
 // ── FETCH ────────────────────────────────────────────
+const _apiCache={};
+const CACHE_TTL=60000; // 60s \u2014 successful responses only
 async function apiFetch(endpoint,retries=2){
+  const key='aep_c_'+endpoint, now=Date.now();
+  const hit=_apiCache[key];
+  if(hit&&now-hit.t<CACHE_TTL)return hit.d;
+  try{const ls=localStorage.getItem(key);
+    if(ls){const o=JSON.parse(ls);
+      if(o&&o.t&&now-o.t<CACHE_TTL){_apiCache[key]=o;return o.d;}}
+  }catch(e){}
   for(let i=0;i<=retries;i++){
     try{
       const r=await fetch('https://finnhub.io/api/v1/'+endpoint+'&token='+API_KEY);
       if(r.status===429){await sleep(1500*(i+1));continue;}
       if(r.status===401)throw new Error('API key rejected. Tap gear icon to update.');
       if(!r.ok)throw new Error('Finnhub HTTP '+r.status);
-      return r.json();
+      const d=await r.json();
+      _apiCache[key]={t:now,d};
+      try{localStorage.setItem(key,JSON.stringify({t:now,d}));}catch(e){}
+      return d;
     }catch(e){if(i===retries)throw e;await sleep(800);}
   }
 }
 async function fetchFG(){
-  try{const r=await fetch('https://feargreedchart.com/api/?action=current');if(!r.ok)throw 0;const d=await r.json();return{score:d.score?.score||50,label:d.score?.label||'Neutral',components:d.score?.components||[]};}
-  catch{return{score:50,label:'Neutral',components:[]};}
+  // Source 1: feargreedchart.com (direct)
+  try{
+    const r=await fetch('https://feargreedchart.com/api/?action=current',{signal:AbortSignal.timeout(5000)});
+    if(r.ok){const d=await r.json();const s=d.score?.score;
+      if(s!=null&&s>=0&&s<=100)return{score:s,label:d.score?.label||'Neutral',components:d.score?.components||[]};}
+  }catch(e){}
+  // Source 2: CNN Fear & Greed via CORS proxy
+  const cnn='https://production.dataviz.cnn.io/index/fearandgreed/graphdata';
+  for(const u of ['https://corsproxy.io/?'+encodeURIComponent(cnn),'https://api.allorigins.win/raw?url='+encodeURIComponent(cnn)]){
+    try{
+      const r=await fetch(u,{signal:AbortSignal.timeout(5000)});
+      if(!r.ok)continue;
+      const d=await r.json();
+      const s=d?.fear_and_greed?.score;
+      if(s!=null&&s>=0&&s<=100){
+        const sc=Math.round(s);
+        console.log('F&G via CNN fallback:',sc);
+        return{score:sc,label:d.fear_and_greed.rating||'Neutral',components:[]};
+      }
+    }catch(e){}
+  }
+  console.warn('All F&G sources failed \u2014 sentiment neutralized (estimated)');
+  return{score:50,label:'Neutral',components:[],estimated:true};
 }
 
 // ── ANALYZE ──────────────────────────────────────────
@@ -681,8 +714,11 @@ function scoreFund(earnings,metrics){
   // Extra fields for intrinsic value calculation
   const eps=m['epsNormalizedAnnual']||m['epsTTM']||null;
   const bvps=m['bookValuePerShareAnnual']||m['bookValuePerShareQuarterly']||null;
-  const fwd_g=rg!=null?(rg*100):null; // use revenue growth as growth proxy
-  return{score:Math.min(Math.max(Math.round(sc),0),100),pe,rg,mg,roe,de,eps,bvps,fwd_g,earnings};
+  // Growth for valuation: prefer EPS growth (Graham's intent), fall back to revenue growth
+  const eg=m['epsGrowthTTMYoy']!=null?m['epsGrowthTTMYoy']:(m['epsGrowth5Y']!=null?m['epsGrowth5Y']:null);
+  const fwd_g=eg!=null?(eg*100):(rg!=null?(rg*100):null);
+  const gSource=eg!=null?'EPS growth (TTM YoY)':(rg!=null?'revenue growth (proxy \u2014 EPS growth unavailable)':null);
+  return{score:Math.min(Math.max(Math.round(sc),0),100),pe,rg,mg,roe,de,eps,bvps,fwd_g,gSource,earnings};
 
 }
 function scoreTech(price,candles,quote){
@@ -711,7 +747,7 @@ function scoreSent(fg){
   if(s<=25)sc=75;else if(s<=40)sc=65;else if(s<=60)sc=50;else if(s<=75)sc=40;else sc=25;
   const label=s<=25?'Extreme Fear':s<=40?'Fear':s<=60?'Neutral':s<=75?'Greed':'Extreme Greed';
   const interp=s<=40?'Fear = potential buying opportunity \u2014 smart money buys when retail panics':s>=75?'Extreme greed \u2014 market may be overheated':'Neutral sentiment \u2014 no strong directional signal from sentiment alone';
-  return{score:sc,fgScore:s,fgLabel:label,interp};
+  return{score:sc,fgScore:s,fgLabel:label,interp,estimated:!!fg.estimated};
 }
 function scoreMacro(macro){
   let sc=50,notes=[];
@@ -902,7 +938,7 @@ function renderDash(a,candles,news,fg){
   sT('sig-e','$'+fmt(a.entry));sT('sig-t','$'+fmt(a.tp2));sT('sig-s','$'+fmt(a.stop));
   renderScoreCard('f',a.fund.score,'EPS \u00b7 Revenue \u00b7 Margin');
   renderScoreCard('t',a.tech.score,'RSI \u00b7 EMA \u00b7 Structure');
-  renderScoreCard('s',a.sent.score,'F&G: '+a.sent.fgScore);
+  renderScoreCard('s',a.sent.score,'F&G: '+a.sent.fgScore+(a.sent.estimated?' (est)':''));
   renderScoreCard('m',a.mac.score,'CPI \u00b7 PMI \u00b7 Fed');
 
   // Fundamentals
@@ -940,9 +976,9 @@ function renderDash(a,candles,news,fg){
       <div style="height:6px;background:var(--bg3);border-radius:3px;margin-bottom:10px;overflow:hidden">
         <div style="height:100%;border-radius:3px;background:${mosColor};width:${Math.min(Math.max((iv.average/a.price)*100,10),160)}%;transition:width .5s"></div>
       </div>
-      ${mRI('Graham Formula','Benjamin Graham: IV = EPS × (8.5 + 2×Growth) × 4.4 / Bond Yield. Classic value investing formula from Security Analysis.',hasGraham?'$'+fmt(iv.graham):'Insufficient data',hasGraham?(iv.graham>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
-      ${mRI('P/E Fair Value','Fair value using growth-adjusted P/E multiple. Fair P/E = 15 + (Growth - 8) × 0.8, then multiplied by EPS.',hasPE?'$'+fmt(iv.pe_based)+' ('+iv.fairPE+'× EPS)':'Insufficient data',hasPE?(iv.pe_based>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
-      ${mRI('P/B Fair Value','Fair value using ROE-based Price-to-Book. Fair P/B = ROE ÷ Cost of Equity (10%), then multiplied by Book Value Per Share.',hasPB?'$'+fmt(iv.pb_based)+' ('+iv.fairPB+'× Book)':'Insufficient data',hasPB?(iv.pb_based>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
+      ${mRI('Graham Formula','Benjamin Graham: IV = EPS × (8.5 + 2×Growth) × 4.4 / Bond Yield. Classic value investing formula from Security Analysis. Growth input: '+(a.fund.gSource||'n/a')+'.',hasGraham?'$'+fmt(iv.graham):'Insufficient data',hasGraham?(iv.graham>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
+      ${mRI('P/E Fair Value','Fair value using growth-adjusted P/E multiple. Fair P/E = 15 + (Growth - 8) × 0.8, then multiplied by EPS. Proprietary Alpha Edge model \u2014 not an industry-standard formula.',hasPE?'$'+fmt(iv.pe_based)+' ('+iv.fairPE+'× EPS)':'Insufficient data',hasPE?(iv.pe_based>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
+      ${mRI('P/B Fair Value','Fair value using ROE-based Price-to-Book. Fair P/B = ROE ÷ Cost of Equity (10%), then multiplied by Book Value Per Share. Proprietary Alpha Edge model \u2014 not an industry-standard formula.',hasPB?'$'+fmt(iv.pb_based)+' ('+iv.fairPB+'× Book)':'Insufficient data',hasPB?(iv.pb_based>a.price?'var(--green)':'var(--red)'):'var(--muted)')}
       ${mRI('Margin of Safety','The discount (or premium) of the stock price vs estimated intrinsic value. Above 15% is a strong value signal.',mosSign+fmt(mos,1)+'%',mosColor)}
       <div style="margin-top:10px;padding:9px 10px;background:var(--bg3);border-radius:6px;border-left:3px solid ${mosColor};font-size:9px;color:#b0c4d8;line-height:1.7">
         ${mos>=15?'<strong style="color:var(--green)">Strong value opportunity</strong> — stock is trading significantly below estimated intrinsic value. Multiple methods agree the stock is cheap relative to fundamentals.'
@@ -1117,7 +1153,7 @@ async function scanTicker(sym){
     // ── RSI proxy: use 14-day change% momentum ──
     // Approximate: strong positive day = high RSI, strong negative = low RSI
     // chgPct of +3% or more ~ RSI 70+; -3% or less ~ RSI 30-
-    const rsiProxy = Math.min(Math.max(Math.round(50 + chgPct * 6), 0), 100);
+    const momentumScore = Math.min(Math.max(Math.round(50 + chgPct * 6), 0), 100);
 
     // ── Where price sits within today's range (0=at low, 100=at high) ──
     const rangePos = Math.round(((price - low) / dayRange) * 100);
@@ -1176,7 +1212,7 @@ async function scanTicker(sym){
     }catch{}
 
     return{sym,price,change:chg,changePct:chgPct,bull,bear,
-           rsi:rsiProxy,rangePos,pcRatio,pcLabel,pcColor};
+           momentum:momentumScore,rangePos,pcRatio,pcLabel,pcColor};
   }catch{return null;}
 }
 
@@ -1228,6 +1264,16 @@ async function fetchYahooCandles(sym){
 }
 
 window.addEventListener('load',()=>{
+  // Purge cache entries older than 5 min
+  try{const now=Date.now();
+    Object.keys(localStorage).forEach(k=>{
+      if(k.indexOf('aep_c_')===0){
+        try{const o=JSON.parse(localStorage.getItem(k));
+          if(!o||!o.t||now-o.t>300000)localStorage.removeItem(k);
+        }catch(e){localStorage.removeItem(k);}
+      }
+    });
+  }catch(e){}
   setupInput();
   if(sessionStorage.getItem('aep_ok')){
     G('dm').style.display='none';
