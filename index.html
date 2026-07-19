@@ -194,6 +194,10 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
       <div class="nav-icon">&#128269;</div>
       <div class="nav-lbl">SCANNER</div>
     </div>
+    <div class="nav-i" id="nav-track" onclick="switchPage('track')">
+      <div class="nav-icon">&#128202;</div>
+      <div class="nav-lbl">TRACK</div>
+    </div>
     <div class="sb-bot">
       <div class="live-d" id="live-dot"></div>
       <div class="live-t" id="live-txt">LIVE</div>
@@ -395,6 +399,32 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
         <div style="text-align:center;margin-top:14px;font-size:8px;color:#1a2e44">FOR EDUCATIONAL PURPOSES ONLY &middot; NOT INVESTMENT ADVICE</div>
       </div>
 
+      <!-- TRACK RECORD PAGE -->
+      <div class="page" id="page-track">
+        <div class="sc-hdr">
+          <div>
+            <div style="font-size:13px;font-weight:900;color:var(--white);letter-spacing:1px">TRACK RECORD</div>
+            <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-top:2px">EVERY SIGNAL, LOGGED AUTOMATICALLY &middot; FORWARD-TESTED</div>
+          </div>
+          <button class="sc-btn" onclick="refreshTrackRecord()">&#8635; REFRESH</button>
+        </div>
+        <div style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold)">
+          &#9432; Every time you analyze a stock, the signal is saved here with today's price. Come back in 5, 10, 20, or 60 days and the app checks what actually happened &mdash; no lookahead, no cherry-picking.
+        </div>
+        <div class="g4" id="track-summary" style="margin-bottom:12px"></div>
+        <div class="sp">
+          <div class="sp-hdr" style="background:rgba(0,162,255,0.05);border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-size:10px;font-weight:800;color:var(--blue);letter-spacing:1px">SIGNAL LOG</div>
+              <div style="font-size:8px;color:#4a6480;margin-top:1px">Most recent first &middot; tap to re-analyze</div>
+            </div>
+            <button onclick="clearTrackRecord()" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:8px;padding:4px 8px;border-radius:4px;cursor:pointer;font-family:'Courier New',monospace">CLEAR LOG</button>
+          </div>
+          <div id="track-list"><div class="se">No signals logged yet &mdash; analyze a stock to begin</div></div>
+        </div>
+        <div style="text-align:center;margin-top:14px;font-size:8px;color:#1a2e44">EACH SIGNAL IS LOGGED LOCALLY IN YOUR BROWSER &middot; NOT SHARED &middot; FOR EDUCATIONAL PURPOSES ONLY</div>
+      </div>
+
     </div><!-- end scroll-a -->
   </div><!-- end main -->
 </div><!-- end shell -->
@@ -466,17 +496,18 @@ function clearKey(){if(!confirm('Change API key?'))return;localStorage.removeIte
 
 // ── NAVIGATION ──────────────────────────────────────
 function showPage(name){
-  ['analysis','scanner'].forEach(p=>{
+  ['analysis','scanner','track'].forEach(p=>{
     const pg=G('page-'+p);if(pg)pg.classList.toggle('on',p===name);
     const nv=G('nav-'+p);if(nv)nv.classList.toggle('on',p===name);
   });
-  const titles={analysis:'ANALYSIS',scanner:'MARKET SCANNER'};
+  const titles={analysis:'ANALYSIS',scanner:'MARKET SCANNER',track:'TRACK RECORD'};
   sT('page-title',titles[name]||name);
   const tin=G('t-in'),abn=G('a-btn');
   if(tin)tin.style.display=name==='analysis'?'':'none';
   if(abn)abn.style.display=name==='analysis'?'':'none';
   G('scroll-a').scrollTop=0;
   if(name==='scanner'&&!scanRan)runScanner();
+  if(name==='track')renderTrackRecord();
 }
 function switchPage(name){
   if(!API_KEY){G('ak-pg').style.display='flex';return;}
@@ -596,6 +627,130 @@ async function fetchMacro(){
   }catch(e){console.warn('Macro fetch failed — using baseline values:',e.message);}
 }
 
+
+// ── TRACK RECORD / SIGNAL LOGGER ─────────────────────
+// Logs every composite signal with entry price + date.
+// On revisit, checks the CURRENT quote against the logged price
+// to compute a forward return — no lookahead, no backfilling.
+const TRACK_KEY='aep_track_log';
+const TRACK_HORIZONS=[5,10,20,60]; // trading-day checkpoints (approx via calendar days*1.4)
+
+function trackLoad(){
+  try{const raw=localStorage.getItem(TRACK_KEY);return raw?JSON.parse(raw):[];}catch(e){return[];}
+}
+function trackSave(arr){
+  try{localStorage.setItem(TRACK_KEY,JSON.stringify(arr.slice(-500)));}catch(e){}
+}
+function logSignal(a){
+  const log=trackLoad();
+  const today=new Date().toISOString().split('T')[0];
+  // Avoid duplicate same-day same-ticker entries — update instead of duplicate
+  const existingIdx=log.findIndex(e=>e.sym===a.sym&&e.date===today);
+  const entry={
+    sym:a.sym, date:today, ts:Date.now(),
+    entryPrice:a.price, signal:a.masterSignal, composite:a.composite,
+    fund:a.fund.score, tech:a.tech.score, sent:a.sent.score, mac:a.mac.score,
+    checks:[] // filled lazily when user revisits this page
+  };
+  if(existingIdx>=0)log[existingIdx]=entry; else log.push(entry);
+  trackSave(log);
+}
+function calendarDaysFor(tradingDays){return Math.round(tradingDays*1.4);} // rough trading->calendar day conversion
+async function checkSignalOutcome(entry){
+  const daysElapsed=(Date.now()-entry.ts)/86400000;
+  const results={};
+  for(const h of TRACK_HORIZONS){
+    if(daysElapsed>=calendarDaysFor(h)-1){ // within 1 day tolerance of horizon
+      if(entry.checks && entry.checks['d'+h]!=null)continue; // already checked
+      try{
+        const q=await apiFetch('quote?symbol='+entry.sym);
+        if(q && q.c){
+          const ret=((q.c-entry.entryPrice)/entry.entryPrice*100);
+          results['d'+h]=parseFloat(ret.toFixed(2));
+        }
+      }catch(e){}
+    }
+  }
+  return results;
+}
+async function refreshTrackRecord(){
+  const log=trackLoad();
+  const btn=event?.target;
+  if(btn)btn.textContent='CHECKING...';
+  for(const entry of log){
+    if(!entry.checks)entry.checks={};
+    const newChecks=await checkSignalOutcome(entry);
+    Object.assign(entry.checks,newChecks);
+    await sleep(150); // gentle on rate limit
+  }
+  trackSave(log);
+  renderTrackRecord();
+  if(btn)btn.textContent='\u21bb REFRESH';
+}
+function clearTrackRecord(){
+  if(!confirm('Clear all logged signals? This cannot be undone.'))return;
+  localStorage.removeItem(TRACK_KEY);
+  renderTrackRecord();
+}
+function renderTrackRecord(){
+  const log=trackLoad().slice().reverse();
+  const listEl=G('track-list');
+  const sumEl=G('track-summary');
+  if(!log.length){
+    sH('track-summary','');
+    sH('track-list','<div class="se">No signals logged yet &mdash; analyze a stock to begin</div>');
+    return;
+  }
+  // ── Summary stats across all checked horizons ──
+  let buyRets=[],sellRets=[],total=log.length,checked=0;
+  log.forEach(e=>{
+    const isBuy=e.signal==='BUY'||e.signal==='LEAN BUY';
+    const isSell=e.signal==='SELL/AVOID'||e.signal==='LEAN SELL';
+    if(e.checks){
+      Object.values(e.checks).forEach(r=>{
+        if(r==null)return;
+        checked++;
+        if(isBuy)buyRets.push(r);
+        else if(isSell)sellRets.push(r);
+      });
+    }
+  });
+  const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  const buyAvg=avg(buyRets), sellAvg=avg(sellRets);
+  const winRate=buyRets.length?Math.round(buyRets.filter(r=>r>0).length/buyRets.length*100):null;
+  sH('track-summary',
+    '<div class="sc"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">SIGNALS LOGGED</div><div class="sn" style="color:var(--blue)">'+total+'</div><div class="sl" style="color:var(--blue)">TOTAL</div></div>'+
+    '<div class="sc"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">BUY AVG RETURN</div><div class="sn" style="color:'+(buyAvg==null?'var(--muted)':buyAvg>=0?'var(--green)':'var(--red)')+'">'+(buyAvg==null?'--':(buyAvg>=0?'+':'')+buyAvg.toFixed(1)+'%')+'</div><div class="sl" style="color:var(--muted)">n='+buyRets.length+'</div></div>'+
+    '<div class="sc"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">SELL AVG RETURN</div><div class="sn" style="color:'+(sellAvg==null?'var(--muted)':sellAvg<=0?'var(--green)':'var(--red)')+'">'+(sellAvg==null?'--':(sellAvg>=0?'+':'')+sellAvg.toFixed(1)+'%')+'</div><div class="sl" style="color:var(--muted)">n='+sellRets.length+'</div></div>'+
+    '<div class="sc"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">BUY WIN RATE</div><div class="sn" style="color:'+(winRate==null?'var(--muted)':winRate>=50?'var(--green)':'var(--red)')+'">'+(winRate==null?'--':winRate+'%')+'</div><div class="sl" style="color:var(--muted)">checked</div></div>'
+  );
+  if(checked===0 && total>0){
+    sH('track-summary',G('track-summary').innerHTML+'<div style="grid-column:1/-1;font-size:9px;color:var(--gold);text-align:center;padding-top:6px">No signals have reached a 5-day checkpoint yet. Come back soon, or tap REFRESH to check now.</div>');
+  }
+  // ── Individual rows ──
+  sH('track-list',log.map(e=>{
+    const sigColor=(e.signal==='BUY'||e.signal==='LEAN BUY')?'var(--green)':(e.signal==='SELL/AVOID'||e.signal==='LEAN SELL')?'var(--red)':'var(--gold)';
+    const daysAgo=Math.floor((Date.now()-e.ts)/86400000);
+    const checksHtml=TRACK_HORIZONS.map(h=>{
+      const v=e.checks?e.checks['d'+h]:null;
+      const pending=daysAgo<calendarDaysFor(h)-1;
+      if(pending)return '<span style="color:#2a4060">'+h+'d: pending</span>';
+      if(v==null)return '<span style="color:#2a4060">'+h+'d: --</span>';
+      return '<span style="color:'+(v>=0?'var(--green)':'var(--red)')+'">'+h+'d: '+(v>=0?'+':'')+v+'%</span>';
+    }).join(' &nbsp; ');
+    return '<div class="sr" style="cursor:pointer" onclick="goToAnalysis(\''+e.sym+'\')">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+          '<span class="stk" style="color:'+sigColor+'">'+e.sym+'</span>'+
+          '<span style="font-size:9px;font-weight:800;color:'+sigColor+'">'+e.signal+'</span>'+
+          '<span style="font-size:8px;color:var(--muted)">'+e.date+' \\u00b7 entry $'+fmt(e.entryPrice)+' \\u00b7 score '+e.composite+'/100</span>'+
+        '</div>'+
+        '<div style="font-size:8px;margin-top:3px">'+checksHtml+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join(''));
+}
+
 async function doAnalyze(){
   const sym=G('t-in').value.trim().toUpperCase();
   if(!sym)return;
@@ -644,6 +799,7 @@ async function doAnalyze(){
     const res=buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,MACRO,news);
     curData={res,candles};
     renderDash(res,candles,news,fg);
+    logSignal(res);
     G('upd-lbl').textContent='\u21bb '+new Date().toLocaleTimeString();
     G('ls').style.display='none';G('dash').style.display='block';setLive('live');
     schedRef(sym);
