@@ -311,7 +311,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           <!-- 4 Score Cards -->
           <div class="g4" style="margin-bottom:10px">
             <div class="sc" id="sc-f"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">FUNDAMENTAL</div><canvas id="ring-f" width="90" height="90"></canvas><div class="sn" id="sc-fn" style="display:none"></div><div class="sl" id="sc-fl"></div><div class="ss" id="sc-fs"></div></div>
-            <div class="sc" id="sc-t"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">TECHNICAL</div><canvas id="ring-t" width="90" height="90"></canvas><div class="sn" id="sc-tn" style="display:none"></div><div class="sl" id="sc-tl"></div><div class="ss" id="sc-ts"></div></div>
+            <div class="sc" id="sc-t"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:4px">TECHNICAL<span class="tt-w"><span class="tt-i">i</span><span class="tt-b">Backtested across 40 stocks, 3 years, 5 independent formulations of this score. No version showed a positive correlation with forward returns &mdash; shown as descriptive context, not a predictive buy/sell signal.</span></span></div><canvas id="ring-t" width="90" height="90"></canvas><div class="sn" id="sc-tn" style="display:none"></div><div class="sl" id="sc-tl"></div><div class="ss" id="sc-ts"></div></div>
             <div class="sc" id="sc-s"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">SENTIMENT</div><canvas id="ring-s" width="90" height="90"></canvas><div class="sn" id="sc-sn" style="display:none"></div><div class="sl" id="sc-sl"></div><div class="ss" id="sc-ss"></div></div>
             <div class="sc" id="sc-m"><div style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">MACRO</div><canvas id="ring-m" width="90" height="90"></canvas><div class="sn" id="sc-mn" style="display:none"></div><div class="sl" id="sc-ml"></div><div class="ss" id="sc-ms"></div></div>
           </div>
@@ -1065,7 +1065,14 @@ function renderScoreCard(id,score,sub){
   const el=G('sc-'+id);
   if(el)el.style.borderColor=color;
   sT('sc-'+id+'n',score);if(G('sc-'+id+'n'))G('sc-'+id+'n').style.color=color;
-  sT('sc-'+id+'l',score>=70?'BUY':score>=45?'WATCH':'CAUTION');if(G('sc-'+id+'l'))G('sc-'+id+'l').style.color=color;
+  // Technical uses descriptive labels (state of the stock), not predictive
+  // BUY/WATCH/CAUTION labels. Backtested across 40 stocks / 3 years / 5
+  // independent formulations -- no formulation showed a positive forward-
+  // return edge, so Technical is framed as context, not a standalone signal.
+  const label = (id==='t')
+    ? (score>=70?'STRONG TREND':score>=45?'MIXED TREND':'WEAK TREND')
+    : (score>=70?'BUY':score>=45?'WATCH':'CAUTION');
+  sT('sc-'+id+'l',label);if(G('sc-'+id+'l'))G('sc-'+id+'l').style.color=color;
   sT('sc-'+id+'s',sub);
   drawRing('ring-'+id,score);
 }
