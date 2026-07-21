@@ -67,6 +67,14 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
 
 /* CARDS */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:11px 13px;margin-bottom:10px}
+.faq-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.faq-q{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--white);user-select:none}
+.faq-q:active{background:var(--bg3)}
+.faq-x{font-size:16px;color:var(--blue);flex-shrink:0;transition:transform .25s;width:16px;text-align:center}
+.faq-item.open .faq-x{transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.faq-item.open .faq-a{max-height:500px}
+.faq-a-in{padding:0 14px 14px;font-size:10px;color:#b0c4d8;line-height:1.7}
 .ct{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:9px;border-bottom:1px solid var(--border);padding-bottom:6px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -197,6 +205,10 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
     <div class="nav-i" id="nav-track" onclick="switchPage('track')">
       <div class="nav-icon">&#128202;</div>
       <div class="nav-lbl">TRACK</div>
+    </div>
+    <div class="nav-i" id="nav-faq" onclick="switchPage('faq')">
+      <div class="nav-icon">&#10067;</div>
+      <div class="nav-lbl">FAQ</div>
     </div>
     <div class="sb-bot">
       <div class="live-d" id="live-dot"></div>
@@ -425,6 +437,52 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
         <div style="text-align:center;margin-top:14px;font-size:8px;color:#1a2e44">EACH SIGNAL IS LOGGED LOCALLY IN YOUR BROWSER &middot; NOT SHARED &middot; FOR EDUCATIONAL PURPOSES ONLY</div>
       </div>
 
+      <!-- FAQ PAGE -->
+      <div class="page" id="page-faq">
+        <div class="sc-hdr">
+          <div>
+            <div style="font-size:13px;font-weight:900;color:var(--white);letter-spacing:1px">FREQUENTLY ASKED QUESTIONS</div>
+            <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-top:2px">FROM YOUR FIRST ANALYSIS TO EVERY SCORE ON THE PAGE</div>
+          </div>
+        </div>
+        <div style="background:rgba(0,162,255,0.06);border:1px solid rgba(0,162,255,0.25);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:10px;color:#a8c8e8;line-height:1.8">
+          <strong style="color:var(--blue)">Before anything else:</strong> Alpha Edge Pro is built to give you clear, organized information &mdash; not to make trading decisions for you. Every score, chart, and signal is here to help you think through a trade more carefully. The final call is always yours.
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <a href="#faq-beginner" style="text-decoration:none;font-size:9px;font-weight:800;letter-spacing:1px;padding:6px 12px;border-radius:20px;border:1px solid rgba(0,255,136,0.3);background:var(--bg2);color:var(--green)">&#128994; BEGINNER</a>
+          <a href="#faq-intermediate" style="text-decoration:none;font-size:9px;font-weight:800;letter-spacing:1px;padding:6px 12px;border-radius:20px;border:1px solid rgba(255,215,0,0.3);background:var(--bg2);color:var(--gold)">&#128993; INTERMEDIATE</a>
+          <a href="#faq-advanced" style="text-decoration:none;font-size:9px;font-weight:800;letter-spacing:1px;padding:6px 12px;border-radius:20px;border:1px solid rgba(168,85,247,0.3);background:var(--bg2);color:var(--purple)">&#128995; ADVANCED</a>
+        </div>
+
+        <div id="faq-beginner" style="font-size:9px;font-weight:800;letter-spacing:2px;color:var(--green);margin:16px 0 8px">BEGINNER &mdash; NEW TO ALPHA EDGE PRO OR TO TRADING</div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>1. What is Alpha Edge Pro, and who is it for?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Alpha Edge Pro is a stock analysis tool. You type in a ticker (like <strong>AAPL</strong> or <strong>NVDA</strong>), and it pulls together several pieces of information &mdash; earnings, price trends, market mood, and the economy &mdash; into one simple view. It's built for anyone who wants a clearer picture before making a trade, whether you've never bought a stock before or you've been investing for years.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>2. I've never traded before &mdash; can I actually use this?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Yes. You don't need any experience to read the app. Every score comes with a plain-English explanation (just tap the small <strong>&#9432;</strong> icon next to it), so you can learn what each number means as you go. That said, the app gives you information &mdash; it doesn't replace learning the basics of investing at your own pace.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>3. What does the composite score (BUY / NEUTRAL / SELL) actually mean?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It's a single summary of everything the app looked at for that stock. <strong style="color:var(--green)">BUY</strong> means most signals point in a positive direction. <strong style="color:var(--gold)">NEUTRAL</strong> means the signals are mixed. <strong style="color:var(--red)">SELL</strong> means most signals point negative. Think of it as a starting point for your own research, not a final answer.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>4. What's the difference between "Entry," "Target," and "Stop Loss"?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Simple way to think about it: <strong>Entry</strong> is a reasonable price to consider buying at. <strong>Target</strong> is a price where you might consider taking profit. <strong>Stop Loss</strong> is a price where, if the stock drops that far, the original idea for the trade is probably wrong &mdash; so it's a signal to reconsider and limit your loss. These are suggestions based on the stock's recent price movement, not guarantees.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>5. Is Alpha Edge Pro telling me what to trade, or helping me decide for myself?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Helping you decide. That's the whole idea behind how it's built. The app organizes real information &mdash; earnings, price trends, market mood, the economy &mdash; so you can see the full picture in one place. But it doesn't know your goals, how much risk you're comfortable with, or your personal financial situation. <strong>You're always the one making the final call.</strong></div></div></div>
+
+        <div id="faq-intermediate" style="font-size:9px;font-weight:800;letter-spacing:2px;color:var(--gold);margin:20px 0 8px">INTERMEDIATE &mdash; YOU'VE USED THE APP AND WANT TO GO DEEPER</div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>6. How is the composite score calculated?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Four categories are blended together, each with a different weight: <strong>Fundamental</strong> (30%) looks at company financials like earnings and profit margins. <strong>Technical</strong> (35%) looks at price trends and momentum. <strong>Sentiment</strong> (20%) looks at overall market mood. <strong>Macro</strong> (15%) looks at the broader economy &mdash; inflation, interest rates, and so on. Each one is scored 0&ndash;100, then combined into the final number you see.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>7. What does the "Technical" score tell me, and how should I use it?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It describes the stock's current price trend &mdash; labeled things like <strong>"Strong Trend"</strong> or <strong>"Weak Trend"</strong> rather than "Buy" or "Sell." That's intentional. It's telling you what's happening with the price right now, which is genuinely useful context &mdash; but it's one piece of the picture, best combined with the other three factors and your own judgment rather than acted on by itself.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>8. What is the Put/Call ratio, and why does it matter?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It compares how many "put" options (bets a stock will fall) versus "call" options (bets a stock will rise) are being traded. A low ratio suggests more optimism in the options market; a high ratio suggests more caution or pessimism. It's shown as a simple badge &mdash; <strong style="color:var(--green)">BULLISH</strong>, <strong style="color:var(--muted)">NEUTRAL</strong>, or <strong style="color:var(--red)">BEARISH</strong> &mdash; next to every stock in the scanner.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>9. What's the difference between the Scanner and analyzing a single stock?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Analyzing a single stock gives you the full deep-dive on one ticker &mdash; every factor, every chart, the full trade plan. The <strong>Scanner</strong> instead looks across 100 S&amp;P 500 stocks at once and surfaces the ones with the strongest call setups and the strongest put setups, so you don't have to check every stock one by one to find ideas worth a closer look.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>10. How often does the data update &mdash; is this real-time?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Prices and quotes refresh automatically about once a minute while you have a stock open. Some data &mdash; like macro indicators &mdash; updates less often, since things like inflation and interest rates are only reported periodically in real life, not every minute.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>11. What does "Intrinsic Value" mean?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">The current price is what the stock is trading at right now. <strong>Intrinsic Value</strong> is an estimate of what the stock might actually be worth, based on the company's earnings and financial health &mdash; independent of the current market price. If the estimate is meaningfully higher than the price, the stock may be undervalued. If it's lower, the stock may be overvalued.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>12. Why do some stocks show as "Overvalued" even when other scores look strong?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">This happens most with fast-growing companies. Intrinsic value formulas were originally designed for stable, established businesses &mdash; they can undervalue high-growth companies where investors are paying for expected future growth, not just today's earnings. Seeing "Overvalued" on a growth stock isn't necessarily a red flag by itself &mdash; it's a signal to weigh growth expectations against the price you'd be paying.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>13. What's the Track Record feature, and how do I know it's not cherry-picked?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Every time you analyze a stock, the app automatically saves that signal along with the price at that moment &mdash; before anyone knows what happens next. Days or weeks later, you can come back and see exactly how that call actually played out. Nothing is added, removed, or adjusted after the fact, which is what makes it a fair way to judge performance over time.</div></div></div>
+
+        <div id="faq-advanced" style="font-size:9px;font-weight:800;letter-spacing:2px;color:var(--purple);margin:20px 0 8px">ADVANCED &mdash; FOR USERS WHO WANT THE FULL METHODOLOGY</div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>14. How rigorously has this scoring system been tested?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Very seriously. The scoring logic was tested against three years of real price history across 40+ stocks spanning different sectors &mdash; not just a handful of hand-picked examples. The goal of that testing wasn't to prove the app is always right, but to understand exactly what each score does and doesn't tell you, so the labels and language in the app reflect that honestly.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>15. Why "Strong Trend" instead of "Buy" or "Sell" for Technical?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Because that's a more accurate description of what the score is actually measuring &mdash; the strength and direction of a stock's recent price trend. Labeling it that way, instead of as a direct buy or sell call, keeps the language matched to what the underlying data can responsibly support, and encourages combining it with the other three factors rather than treating any single one as the whole answer.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>16. How is the Fear &amp; Greed sentiment score sourced?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Sentiment pulls from a primary data source, with a second independent source used automatically as backup if the first is unavailable. If both sources fail, the app falls back to a neutral score and clearly marks it as an estimate rather than silently showing a number as if it were live data.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>17. What formulas are used for the intrinsic value estimates?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Three independent methods are calculated and averaged: the classic <strong>Graham Formula</strong> (a long-standing value-investing formula based on earnings and growth), a <strong>growth-adjusted P/E model</strong>, and an <strong>ROE-based P/B model</strong>. The P/E and P/B versions are Alpha Edge Pro's own models &mdash; clearly labeled as such in the app &mdash; rather than industry-standard formulas, so you know exactly what you're looking at.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>18. How does the app calculate stop-loss and target prices?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It's based on <strong>ATR</strong> (Average True Range), a measure of how much a stock typically moves day to day. The stop loss is set a multiple of ATR below the current price, and profit targets are set as multiples of the resulting risk distance. This keeps the levels anchored to the stock's actual recent volatility, rather than using the same fixed percentage for every stock regardless of how much it normally moves.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>19. Are the macro indicators live data or fixed values?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">CPI, the Fed Rate, and Unemployment update automatically from a live public economic data source. PMI is reported monthly by a private organization that doesn't offer a free live feed, so that figure is updated periodically by hand rather than pulled automatically. The app is transparent about which figures are live versus periodically updated.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>20. Should I rely on the composite score alone, or combine it with my own research?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Combine it with your own research. The composite score is designed to organize a lot of information quickly and give you a clear starting point &mdash; not to replace thinking the trade through yourself. The most reliable way to use Alpha Edge Pro is as one well-organized input among several, alongside your own judgment about risk, timing, and what fits your situation.</div></div></div>
+
+        <div style="text-align:center;margin-top:16px;font-size:8px;color:#1a2e44">FOR EDUCATIONAL PURPOSES ONLY &middot; NOT INVESTMENT ADVICE &middot; ALWAYS MANAGE YOUR RISK</div>
+      </div>
+
     </div><!-- end scroll-a -->
   </div><!-- end main -->
 </div><!-- end shell -->
@@ -494,13 +552,19 @@ async function connectKey(){
 function showAkErr(m){const e=G('ak-err');e.textContent=m;e.style.display='block';}
 function clearKey(){if(!confirm('Change API key?'))return;localStorage.removeItem('aep_key');API_KEY='';G('ak-pg').style.display='flex';}
 
+// ── FAQ ──────────────────────────────────────────────
+function toggleFaq(el){
+  const item = el.closest('.faq-item');
+  if(item) item.classList.toggle('open');
+}
+
 // ── NAVIGATION ──────────────────────────────────────
 function showPage(name){
-  ['analysis','scanner','track'].forEach(p=>{
+  ['analysis','scanner','track','faq'].forEach(p=>{
     const pg=G('page-'+p);if(pg)pg.classList.toggle('on',p===name);
     const nv=G('nav-'+p);if(nv)nv.classList.toggle('on',p===name);
   });
-  const titles={analysis:'ANALYSIS',scanner:'MARKET SCANNER',track:'TRACK RECORD'};
+  const titles={analysis:'ANALYSIS',scanner:'MARKET SCANNER',track:'TRACK RECORD',faq:'FAQ'};
   sT('page-title',titles[name]||name);
   const tin=G('t-in'),abn=G('a-btn');
   if(tin)tin.style.display=name==='analysis'?'':'none';
