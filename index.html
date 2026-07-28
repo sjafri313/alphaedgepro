@@ -700,7 +700,29 @@ const TRACK_KEY='aep_track_log';
 const TRACK_HORIZONS=[5,10,20,60]; // trading-day checkpoints (approx via calendar days*1.4)
 
 function trackLoad(){
-  try{const raw=localStorage.getItem(TRACK_KEY);return raw?JSON.parse(raw):[];}catch(e){return[];}
+  try{
+    const raw=localStorage.getItem(TRACK_KEY);
+    if(!raw)return[];
+    const arr=JSON.parse(raw);
+    // MIGRATION: entries logged before this fix stored checks as an array ([]).
+    // Arrays are truthy in JS, so old code never converted them to objects --
+    // and JSON.stringify on an array silently drops any named properties
+    // (like 'd5') attached to it, so computed returns were saved then lost
+    // on every reload. Heal any legacy array-based checks fields here, once,
+    // on load, so every entry has a real object going forward.
+    let migrated=false;
+    arr.forEach(e=>{
+      if(Array.isArray(e.checks)){
+        e.checks={};
+        migrated=true;
+      }
+    });
+    if(migrated){
+      try{localStorage.setItem(TRACK_KEY,JSON.stringify(arr.slice(-500)));}catch(e){}
+      console.warn('Track Record: migrated '+arr.filter(e=>true).length+' legacy entries from array-based checks to object-based checks.');
+    }
+    return arr;
+  }catch(e){return[];}
 }
 function trackSave(arr){
   try{localStorage.setItem(TRACK_KEY,JSON.stringify(arr.slice(-500)));}catch(e){}
