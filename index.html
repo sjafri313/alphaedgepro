@@ -714,7 +714,7 @@ function logSignal(a){
     sym:a.sym, date:today, ts:Date.now(),
     entryPrice:a.price, signal:a.masterSignal, composite:a.composite,
     fund:a.fund.score, tech:a.tech.score, sent:a.sent.score, mac:a.mac.score,
-    checks:[] // filled lazily when user revisits this page
+    checks:{} // filled lazily when user revisits this page
   };
   if(existingIdx>=0)log[existingIdx]=entry; else log.push(entry);
   trackSave(log);
@@ -723,16 +723,24 @@ function calendarDaysFor(tradingDays){return Math.round(tradingDays*1.4);} // ro
 async function checkSignalOutcome(entry){
   const daysElapsed=(Date.now()-entry.ts)/86400000;
   const results={};
+  let anyDue=false;
   for(const h of TRACK_HORIZONS){
     if(daysElapsed>=calendarDaysFor(h)-1){ // within 1 day tolerance of horizon
       if(entry.checks && entry.checks['d'+h]!=null)continue; // already checked
+      anyDue=true;
       try{
         const q=await apiFetch('quote?symbol='+entry.sym);
         if(q && q.c){
           const ret=((q.c-entry.entryPrice)/entry.entryPrice*100);
           results['d'+h]=parseFloat(ret.toFixed(2));
+        }else{
+          console.warn('Track check: no quote data for '+entry.sym+' at '+h+'d checkpoint');
+          results['d'+h+'_err']=true;
         }
-      }catch(e){}
+      }catch(e){
+        console.warn('Track check failed for '+entry.sym+' at '+h+'d checkpoint: '+e.message);
+        results['d'+h+'_err']=true;
+      }
     }
   }
   return results;
@@ -797,8 +805,10 @@ function renderTrackRecord(){
     const daysAgo=Math.floor((Date.now()-e.ts)/86400000);
     const checksHtml=TRACK_HORIZONS.map(h=>{
       const v=e.checks?e.checks['d'+h]:null;
+      const hadErr=e.checks?e.checks['d'+h+'_err']:null;
       const pending=daysAgo<calendarDaysFor(h)-1;
       if(pending)return '<span style="color:#2a4060">'+h+'d: pending</span>';
+      if(v==null&&hadErr)return '<span style="color:var(--gold)" title="Quote fetch failed — tap REFRESH to retry">'+h+'d: retry</span>';
       if(v==null)return '<span style="color:#2a4060">'+h+'d: --</span>';
       return '<span style="color:'+(v>=0?'var(--green)':'var(--red)')+'">'+h+'d: '+(v>=0?'+':'')+v+'%</span>';
     }).join(' &nbsp; ');
