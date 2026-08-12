@@ -795,18 +795,26 @@ function renderTrackRecord(){
     sH('track-list','<div class="se">No signals logged yet &mdash; analyze a stock to begin</div>');
     return;
   }
-  // ── Summary stats across all checked horizons ──
+  // ── Summary stats — ONE return per signal, not per horizon ──
+  // Pooling every checked horizon (5d AND 10d AND 20d...) as separate samples
+  // double/triple/quadruple-counts the same trade and lets longer-tracked
+  // signals silently outweigh newer ones. Use the LONGEST completed horizon
+  // per signal instead -- one number per trade, like a real track record.
   let buyRets=[],sellRets=[],total=log.length,checked=0;
   log.forEach(e=>{
     const isBuy=e.signal==='BUY'||e.signal==='LEAN BUY';
     const isSell=e.signal==='SELL/AVOID'||e.signal==='LEAN SELL';
     if(e.checks){
-      Object.values(e.checks).forEach(r=>{
-        if(r==null)return;
-        checked++;
-        if(isBuy)buyRets.push(r);
-        else if(isSell)sellRets.push(r);
+      let latest=null,latestH=0;
+      TRACK_HORIZONS.forEach(h=>{
+        const r=e.checks['d'+h];
+        if(r!=null&&h>=latestH){latest=r;latestH=h;}
       });
+      if(latest!=null){
+        checked++;
+        if(isBuy)buyRets.push(latest);
+        else if(isSell)sellRets.push(latest);
+      }
     }
   });
   const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
