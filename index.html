@@ -200,7 +200,7 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
     </div>
     <div class="nav-i" id="nav-scanner" onclick="switchPage('scanner')">
       <div class="nav-icon">&#128269;</div>
-      <div class="nav-lbl">SCANNER</div>
+      <div class="nav-lbl">LEAPS</div>
     </div>
     <div class="nav-i" id="nav-track" onclick="switchPage('track')">
       <div class="nav-icon">&#128202;</div>
@@ -377,8 +377,8 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
       <div class="page" id="page-scanner">
         <div class="sc-hdr">
           <div>
-            <div style="font-size:13px;font-weight:900;color:var(--white);letter-spacing:1px">MARKET SCANNER</div>
-            <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-top:2px">TOP 10 CALLS &middot; TOP 10 PUTS &middot; LIVE SCORED</div>
+            <div style="font-size:13px;font-weight:900;color:var(--white);letter-spacing:1px">LEAP CALL SCREENER</div>
+            <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-top:2px">LARGE-CAP &middot; &gt;15% OFF 52-WEEK HIGH &middot; UNDERVALUED</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div class="sc-tm" id="sc-tm"></div>
@@ -386,26 +386,17 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           </div>
         </div>
         <div style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold)">
-          &#9889; Scans 100 S&P 500 stocks using live Finnhub quotes. Scores on daily momentum, intraday range position, gap direction, and Put/Call Ratio. Click any row for full analysis.
+          &#9889; Scans large-cap stocks (market cap $10B+) for two conditions together: trading more than 15% below their 52-week high, AND showing as undervalued by the Intrinsic Value model. Built for long-dated (LEAP) call candidates &mdash; not a short-term signal. Click any row for full analysis.
         </div>
-        <div class="sg">
-          <div class="sp">
-            <div class="sp-hdr" style="background:rgba(0,255,136,0.05);border-bottom:1px solid var(--border)">
-              <div><div style="font-size:10px;font-weight:800;color:var(--green);letter-spacing:1px">&#128994; TOP 10 CALLS</div><div style="font-size:8px;color:#4a7a5a;margin-top:1px">Highest bull scores</div></div>
-              <div style="font-size:8px;color:#4a7a5a;font-weight:700">SCORE &nbsp; P/C</div>
-            </div>
-            <div id="calls-list"><div class="se"><div class="spin"></div>Tap SCAN NOW</div></div>
+        <div class="sp">
+          <div class="sp-hdr" style="background:rgba(0,255,136,0.05);border-bottom:1px solid var(--border)">
+            <div><div style="font-size:10px;font-weight:800;color:var(--green);letter-spacing:1px">&#128994; DISCOUNTED &amp; UNDERVALUED</div><div style="font-size:8px;color:#4a7a5a;margin-top:1px">Sorted by biggest discount from 52-week high</div></div>
+            <div style="font-size:8px;color:#4a7a5a;font-weight:700">DISCOUNT &nbsp; MARGIN</div>
           </div>
-          <div class="sp">
-            <div class="sp-hdr" style="background:rgba(255,68,68,0.05);border-bottom:1px solid var(--border)">
-              <div><div style="font-size:10px;font-weight:800;color:var(--red);letter-spacing:1px">&#128308; TOP 10 PUTS</div><div style="font-size:8px;color:#7a3030;margin-top:1px">Highest bear scores</div></div>
-              <div style="font-size:8px;color:#7a3030;font-weight:700">SCORE &nbsp; P/C</div>
-            </div>
-            <div id="puts-list"><div class="se"><div class="spin"></div>Tap SCAN NOW</div></div>
-          </div>
+          <div id="leap-list"><div class="se"><div class="spin"></div>Tap SCAN NOW</div></div>
         </div>
         <div style="margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
-          <div style="font-size:8px;color:var(--muted);letter-spacing:2px;font-weight:800;margin-bottom:7px">SCANNER UNIVERSE &mdash; 100 STOCKS</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:2px;font-weight:800;margin-bottom:7px">SCANNER UNIVERSE &mdash; 100 LARGE-CAP STOCKS</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px" id="sc-uni"></div>
         </div>
         <div style="text-align:center;margin-top:14px;font-size:8px;color:#1a2e44">FOR EDUCATIONAL PURPOSES ONLY &middot; NOT INVESTMENT ADVICE</div>
@@ -421,7 +412,15 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
           <button class="sc-btn" onclick="refreshTrackRecord()">&#8635; REFRESH</button>
         </div>
         <div style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold)">
-          &#9432; Every time you analyze a stock, the signal is saved here with today's price. Come back in 5, 10, 20, or 60 days and the app checks what actually happened &mdash; no lookahead, no cherry-picking.
+          &#9432; Search a ticker below, then tap BUY or SELL to log your own call at today's price. Come back in 5, 10, 20, or 60 days and the app checks what actually happened &mdash; no lookahead, no cherry-picking.
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="ct" style="color:var(--blue)">Log a New Signal</div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <input id="track-t-in" placeholder="TICKER" maxlength="6" autocomplete="off" style="flex:1;background:var(--bg3);border:1px solid #1a3555;border-radius:5px;color:var(--blue);padding:9px 12px;font-size:14px;font-family:'Courier New',monospace;letter-spacing:2px;font-weight:700;outline:none;text-transform:uppercase"/>
+            <button class="a-btn" id="track-lookup-btn" onclick="trackLookup()" style="flex-shrink:0">LOOK UP &#9654;</button>
+          </div>
+          <div id="track-lookup-result"></div>
         </div>
         <div class="g4" id="track-summary" style="margin-bottom:12px"></div>
         <div class="sp">
@@ -464,12 +463,12 @@ html,body{background:var(--bg1);color:var(--text);font-family:'Courier New',mono
         <div id="faq-intermediate" style="font-size:9px;font-weight:800;letter-spacing:2px;color:var(--gold);margin:20px 0 8px">INTERMEDIATE &mdash; YOU'VE USED THE APP AND WANT TO GO DEEPER</div>
         <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>6. How is the composite score calculated?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Four categories are blended together, each with a different weight: <strong>Fundamental</strong> (30%) looks at company financials like earnings and profit margins. <strong>Technical</strong> (35%) looks at price trends and momentum. <strong>Sentiment</strong> (20%) looks at overall market mood. <strong>Macro</strong> (15%) looks at the broader economy &mdash; inflation, interest rates, and so on. Each one is scored 0&ndash;100, then combined into the final number you see.</div></div></div>
         <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>7. What does the "Technical" score tell me, and how should I use it?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It describes the stock's current price trend &mdash; labeled things like <strong>"Strong Trend"</strong> or <strong>"Weak Trend"</strong> rather than "Buy" or "Sell." That's intentional. It's telling you what's happening with the price right now, which is genuinely useful context &mdash; but it's one piece of the picture, best combined with the other three factors and your own judgment rather than acted on by itself.</div></div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>8. What is the Put/Call ratio, and why does it matter?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It compares how many "put" options (bets a stock will fall) versus "call" options (bets a stock will rise) are being traded. A low ratio suggests more optimism in the options market; a high ratio suggests more caution or pessimism. It's shown as a simple badge &mdash; <strong style="color:var(--green)">BULLISH</strong>, <strong style="color:var(--muted)">NEUTRAL</strong>, or <strong style="color:var(--red)">BEARISH</strong> &mdash; next to every stock in the scanner.</div></div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>9. What's the difference between the Scanner and analyzing a single stock?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Analyzing a single stock gives you the full deep-dive on one ticker &mdash; every factor, every chart, the full trade plan. The <strong>Scanner</strong> instead looks across 100 S&amp;P 500 stocks at once and surfaces the ones with the strongest call setups and the strongest put setups, so you don't have to check every stock one by one to find ideas worth a closer look.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>8. What does the LEAP Screener look for?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">It scans large-cap stocks (market cap $10B or more) for two conditions at the same time: the stock is trading more than 15% below its 52-week high, AND the Intrinsic Value model shows it as undervalued. The idea is to surface established companies that have pulled back a meaningful amount but still look reasonably priced &mdash; a common starting point for long-dated (LEAP) call ideas.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>9. What's the difference between the LEAP Screener and analyzing a single stock?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Analyzing a single stock gives you the full deep-dive on one ticker &mdash; every factor, every chart, the full trade plan. The <strong>LEAP Screener</strong> instead checks all 100 large-cap stocks in the universe against the discount and valuation criteria at once, so you don't have to check every stock one by one to find candidates worth a closer look.</div></div></div>
         <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>10. How often does the data update &mdash; is this real-time?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Prices and quotes refresh automatically about once a minute while you have a stock open. Some data &mdash; like macro indicators &mdash; updates less often, since things like inflation and interest rates are only reported periodically in real life, not every minute.</div></div></div>
         <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>11. What does "Intrinsic Value" mean?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">The current price is what the stock is trading at right now. <strong>Intrinsic Value</strong> is an estimate of what the stock might actually be worth, based on the company's earnings and financial health &mdash; independent of the current market price. If the estimate is meaningfully higher than the price, the stock may be undervalued. If it's lower, the stock may be overvalued.</div></div></div>
         <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>12. Why do some stocks show as "Overvalued" even when other scores look strong?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">This happens most with fast-growing companies. Intrinsic value formulas were originally designed for stable, established businesses &mdash; they can undervalue high-growth companies where investors are paying for expected future growth, not just today's earnings. Seeing "Overvalued" on a growth stock isn't necessarily a red flag by itself &mdash; it's a signal to weigh growth expectations against the price you'd be paying.</div></div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>13. What's the Track Record feature, and how do I know it's not cherry-picked?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Every time you analyze a stock, the app automatically saves that signal along with the price at that moment &mdash; before anyone knows what happens next. Days or weeks later, you can come back and see exactly how that call actually played out. Nothing is added, removed, or adjusted after the fact, which is what makes it a fair way to judge performance over time.</div></div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>13. What's the Track Record feature, and how do I know it's not cherry-picked?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Track Record has its own search, separate from the main Analysis tab. Look up a ticker there, and choose BUY or SELL yourself to log your own call at the current price &mdash; before anyone knows what happens next. Days or weeks later, you can come back and see exactly how that call actually played out. Nothing is added, removed, or adjusted after the fact, which is what makes it a fair way to judge performance over time.</div></div></div>
 
         <div id="faq-advanced" style="font-size:9px;font-weight:800;letter-spacing:2px;color:var(--purple);margin:20px 0 8px">ADVANCED &mdash; FOR USERS WHO WANT THE FULL METHODOLOGY</div>
         <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)"><span>14. How rigorously has this scoring system been tested?</span><span class="faq-x">+</span></div><div class="faq-a"><div class="faq-a-in">Very seriously. The scoring logic was tested against three years of real price history across 40+ stocks spanning different sectors &mdash; not just a handful of hand-picked examples. The goal of that testing wasn't to prove the app is always right, but to understand exactly what each score does and doesn't tell you, so the labels and language in the app reflect that honestly.</div></div></div>
@@ -564,7 +563,7 @@ function showPage(name){
     const pg=G('page-'+p);if(pg)pg.classList.toggle('on',p===name);
     const nv=G('nav-'+p);if(nv)nv.classList.toggle('on',p===name);
   });
-  const titles={analysis:'ANALYSIS',scanner:'MARKET SCANNER',track:'TRACK RECORD',faq:'FAQ'};
+  const titles={analysis:'ANALYSIS',scanner:'LEAP SCREENER',track:'TRACK RECORD',faq:'FAQ'};
   sT('page-title',titles[name]||name);
   const tin=G('t-in'),abn=G('a-btn');
   if(tin)tin.style.display=name==='analysis'?'':'none';
@@ -592,6 +591,11 @@ function setupInput(){
   });
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')doAnalyze();});
   document.addEventListener('click',e=>{if(!e.target.closest('.t-wrap'))G('sugs').style.display='none';});
+  const trackInp=G('track-t-in');
+  if(trackInp){
+    trackInp.addEventListener('input',function(){this.value=this.value.toUpperCase().replace(/[^A-Z.]/g,'');});
+    trackInp.addEventListener('keydown',e=>{if(e.key==='Enter')trackLookup();});
+  }
 }
 function qp(sym){G('t-in').value=sym;G('sugs').style.display='none';doAnalyze();}
 
@@ -727,19 +731,89 @@ function trackLoad(){
 function trackSave(arr){
   try{localStorage.setItem(TRACK_KEY,JSON.stringify(arr.slice(-500)));}catch(e){}
 }
-function logSignal(a){
+function logSignal(a,manualDirection){
+  // manualDirection: 'BUY' or 'SELL' when logged from the Track Record page's
+  // own buttons — overrides the app's composite label with the user's own
+  // call, at the live price shown at the moment they tapped it.
   const log=trackLoad();
   const today=new Date().toISOString().split('T')[0];
   // Avoid duplicate same-day same-ticker entries — update instead of duplicate
   const existingIdx=log.findIndex(e=>e.sym===a.sym&&e.date===today);
   const entry={
     sym:a.sym, date:today, ts:Date.now(),
-    entryPrice:a.price, signal:a.masterSignal, composite:a.composite,
+    entryPrice:a.price, signal:manualDirection==='SELL'?'SELL/AVOID':(manualDirection||a.masterSignal), composite:a.composite,
     fund:a.fund.score, tech:a.tech.score, sent:a.sent.score, mac:a.mac.score,
+    manual:!!manualDirection,
     checks:{} // filled lazily when user revisits this page
   };
   if(existingIdx>=0)log[existingIdx]=entry; else log.push(entry);
   trackSave(log);
+}
+// ── TRACK RECORD: standalone lookup + manual Buy/Sell logging ──
+let trackLookupData=null; // holds {res} from the last successful lookup
+async function trackLookup(){
+  const sym=G('track-t-in').value.trim().toUpperCase();
+  if(!sym)return;
+  if(!API_KEY){G('ak-pg').style.display='flex';return;}
+  const btn=G('track-lookup-btn');
+  btn.disabled=true;btn.textContent='LOADING...';
+  sH('track-lookup-result','<div class="se"><div class="spin"></div>Fetching '+sym+'...</div>');
+  try{
+    await fetchMacro();
+    const quote=await apiFetch('quote?symbol='+sym);
+    if(!quote.c||quote.c===0)throw new Error('No data for "'+sym+'". Check the ticker symbol.');
+    const profile=await apiFetch('stock/profile2?symbol='+sym).catch(()=>({}));
+    const [earnings,metrics]=await Promise.all([
+      apiFetch('stock/earnings?symbol='+sym+'&limit=4').catch(()=>[]),
+      apiFetch('stock/metric?symbol='+sym+'&metric=all').catch(()=>({}))
+    ]);
+    const now=Math.floor(Date.now()/1000),from=now-86400*340;
+    const cdl=await apiFetch('stock/candle?symbol='+sym+'&resolution=D&from='+from+'&to='+now).catch(()=>({s:'no_data'}));
+    const today=new Date(),fd=new Date(today-7*86400000);
+    const news=await apiFetch('company-news?symbol='+sym+'&from='+fd.toISOString().split('T')[0]+'&to='+today.toISOString().split('T')[0]).catch(()=>[]);
+    const fg=await fetchFG();
+    let candles=[];
+    if(cdl.s==='ok'&&Array.isArray(cdl.c)&&cdl.c.length>=5){
+      candles=cdl.t.map((_,i)=>({o:cdl.o[i],h:cdl.h[i],l:cdl.l[i],c:cdl.c[i],v:cdl.v[i]}));
+    }else{
+      const yc=await fetchYahooCandles(sym);
+      if(yc&&yc.length>=5){candles=yc;}
+      else{
+        const p=quote.c,pc=quote.pc||p*.99,dr=(p-pc)/24;
+        candles=Array.from({length:25},(_,i)=>{const b=pc+dr*i,v=b*.012;return{o:b-v*.3+Math.random()*v*.6,h:b+v*.5+Math.random()*v*.4,l:b-v*.5-Math.random()*v*.4,c:b+Math.random()*v*.4-v*.2,v:8e6+Math.random()*4e6};});
+        candles[24].c=quote.c;
+      }
+    }
+    const res=buildAnalysis(sym,quote,candles,profile,earnings,metrics,fg,MACRO,news);
+    trackLookupData=res;
+    const isUp=res.change>=0,chgColor=isUp?'var(--green)':'var(--red)';
+    sH('track-lookup-result',
+      '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px 14px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+          '<div><span style="font-size:16px;font-weight:900;color:var(--white)">'+res.sym+'</span> <span style="font-size:9px;color:var(--muted)">'+(res.name||'')+'</span></div>'+
+          '<div style="text-align:right"><span style="font-size:18px;font-weight:900;font-family:Courier New,monospace">$'+fmt(res.price)+'</span><br><span style="font-size:9px;color:'+chgColor+'">'+(isUp?'+':'')+fmt(res.changePct)+'%</span></div>'+
+        '</div>'+
+        '<div style="font-size:9px;color:var(--muted);margin-bottom:10px">App composite: <strong style="color:'+(res.composite>=60?'var(--green)':res.composite>=45?'var(--gold)':'var(--red)')+'">'+res.masterSignal+' ('+res.composite+'/100)</strong> &mdash; for reference only, your call below is what gets logged</div>'+
+        '<div style="display:flex;gap:8px">'+
+          '<button onclick="trackLogManual(&#39;BUY&#39;)" style="flex:1;padding:12px;background:rgba(0,255,136,0.12);border:2px solid var(--green);border-radius:6px;color:var(--green);font-size:13px;font-weight:900;letter-spacing:1px;font-family:Courier New,monospace;cursor:pointer">&#9650; BUY</button>'+
+          '<button onclick="trackLogManual(&#39;SELL&#39;)" style="flex:1;padding:12px;background:rgba(255,68,68,0.12);border:2px solid var(--red);border-radius:6px;color:var(--red);font-size:13px;font-weight:900;letter-spacing:1px;font-family:Courier New,monospace;cursor:pointer">&#9660; SELL</button>'+
+        '</div>'+
+      '</div>'
+    );
+  }catch(e){
+    sH('track-lookup-result','<div style="font-size:10px;color:var(--red);padding:10px;background:rgba(255,68,68,0.07);border:1px solid var(--red);border-radius:6px">&#9888; '+e.message+'</div>');
+  }finally{
+    btn.disabled=false;btn.textContent='LOOK UP \u25b6';
+  }
+}
+function trackLogManual(direction){
+  if(!trackLookupData)return;
+  logSignal(trackLookupData,direction);
+  const sym=trackLookupData.sym,price=trackLookupData.price;
+  sH('track-lookup-result','<div style="font-size:10px;color:var(--green);padding:12px;background:rgba(0,255,136,0.07);border:1px solid var(--green);border-radius:6px;text-align:center">&#10003; Logged <strong>'+sym+'</strong> as <strong>'+direction+'</strong> at $'+fmt(price)+'</div>');
+  G('track-t-in').value='';
+  trackLookupData=null;
+  renderTrackRecord();
 }
 function calendarDaysFor(tradingDays){return Math.round(tradingDays*1.4);} // rough trading->calendar day conversion
 async function checkSignalOutcome(entry){
@@ -847,6 +921,7 @@ function renderTrackRecord(){
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
           '<span class="stk" style="color:'+sigColor+'">'+e.sym+'</span>'+
           '<span style="font-size:9px;font-weight:800;color:'+sigColor+'">'+e.signal+'</span>'+
+          (e.manual?'<span style="font-size:7px;font-weight:800;color:var(--blue);border:1px solid var(--blue);border-radius:3px;padding:1px 5px">MANUAL</span>':'')+
           '<span style="font-size:8px;color:var(--muted)">'+e.date+' \\u00b7 entry $'+fmt(e.entryPrice)+' \\u00b7 score '+e.composite+'/100</span>'+
         '</div>'+
         '<div style="font-size:8px;margin-top:3px">'+checksHtml+'</div>'+
@@ -904,7 +979,6 @@ async function doAnalyze(){
     const chartCandles=candles.slice(-90); // full history used for scoring; only recent 90 shown on chart
     curData={res,candles:chartCandles};
     renderDash(res,chartCandles,news,fg);
-    logSignal(res);
     G('upd-lbl').textContent='\u21bb '+new Date().toLocaleTimeString();
     G('ls').style.display='none';G('dash').style.display='block';setLive('live');
     schedRef(sym);
@@ -1380,123 +1454,81 @@ function drawChart(candles,kl){
 }
 
 // ── SCANNER ──────────────────────────────────────────
+// ── LEAP CALL SCREENER ────────────────────────────────
+// Large-cap ($10B+) stocks trading >15% below their 52-week high AND
+// showing as undervalued by the Intrinsic Value model (Graham / P-E / P-B
+// average). Reuses scoreFund() + calcIntrinsicValue() from the Analysis
+// tab so the "undervalued" call here is identical logic to what a single
+// stock's Intrinsic Value card would show.
+const LARGE_CAP_MIN = 10000; // $10B, in millions (Finnhub's marketCapitalization unit)
+const DISCOUNT_MIN  = 15;    // % below 52-week high, minimum to qualify
+
 async function runScanner(){
   if(!API_KEY){alert('Please enter your Finnhub API key first.');return;}
   const btn=G('sc-btn');btn.disabled=true;btn.textContent='SCANNING...';
-  sH('calls-list','<div class="se"><div class="spin"></div>Scanning 40 stocks...</div>');
-  sH('puts-list','<div class="se"><div class="spin"></div>Analyzing signals...</div>');
+  sH('leap-list','<div class="se"><div class="spin"></div>Scanning '+SCAN.length+' large-cap stocks...</div>');
   const uni=G('sc-uni');
-  if(uni)uni.innerHTML=SCAN.map(t=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:2px 7px;font-size:8px;color:#3a6080;font-family:\'Courier New\',monospace;font-weight:700;cursor:pointer" onclick="goToAnalysis(\''+t+'\')">'+t+'</div>').join('');
+  if(uni)uni.innerHTML=SCAN.map(t=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:2px 7px;font-size:8px;color:#3a6080;font-family:Courier New,monospace;font-weight:700;cursor:pointer" onclick="goToAnalysis(&#39;'+t+'&#39;)">'+t+'</div>').join('');
   const results=[];
   for(let i=0;i<SCAN.length;i+=5){
     const batch=SCAN.slice(i,i+5);
-    const br=await Promise.all(batch.map(scanTicker));
+    const br=await Promise.all(batch.map(scanTickerLeap));
     br.forEach(r=>{if(r)results.push(r);});
-    sH('calls-list','<div class="se"><div class="spin"></div>Scanned '+results.length+'/'+SCAN.length+'...</div>');
+    sH('leap-list','<div class="se"><div class="spin"></div>Scanned '+Math.min(i+5,SCAN.length)+'/'+SCAN.length+'... '+results.length+' qualify so far</div>');
     await sleep(900);
   }
   scanRan=true;
-  const topC=[...results].filter(r=>r.bull>=50).sort((a,b)=>b.bull-a.bull).slice(0,10);
-  const topP=[...results].filter(r=>r.bear>=50).sort((a,b)=>b.bear-a.bear).slice(0,10);
-  renderScanList('calls-list',topC,'calls');
-  renderScanList('puts-list',topP,'puts');
+  const qualifying=results.sort((a,b)=>b.discount-a.discount);
+  renderLeapList(qualifying);
   const st=G('sc-tm');if(st)st.textContent='\u21bb '+new Date().toLocaleTimeString();
   btn.disabled=false;btn.textContent='\u21bb SCAN NOW';
 }
-async function scanTicker(sym){
+
+async function scanTickerLeap(sym){
   try{
     const q=await apiFetch('quote?symbol='+sym);
     if(!q.c||q.c===0)return null;
+    const price=q.c;
 
-    const price=q.c, prev=q.pc||q.c, chg=q.d||0, chgPct=q.dp||0;
-    const open=q.o||price, high=q.h||price, low=q.l||price;
+    const profile=await apiFetch('stock/profile2?symbol='+sym).catch(()=>({}));
+    const mcap=profile?.marketCapitalization||0;
+    if(mcap<LARGE_CAP_MIN)return null; // large-cap filter
 
-    // ── Intraday signals from quote ──
-    const dayRange = high - low || 1;
-    const abovePrev = price > prev;
-    const aboveOpen = price > open;
-    const gapUp     = open > prev * 1.005;
-    const gapDown   = open < prev * 0.995;
+    const metrics=await apiFetch('stock/metric?symbol='+sym+'&metric=all').catch(()=>({}));
+    const m=metrics?.metric||{};
+    const high52=m['52WeekHigh'];
+    if(!high52||high52<=0)return null;
 
-    // ── RSI proxy: use 14-day change% momentum ──
-    // Approximate: strong positive day = high RSI, strong negative = low RSI
-    // chgPct of +3% or more ~ RSI 70+; -3% or less ~ RSI 30-
-    const momentumScore = Math.min(Math.max(Math.round(50 + chgPct * 6), 0), 100);
+    const discount=parseFloat((((high52-price)/high52)*100).toFixed(1));
+    if(discount<DISCOUNT_MIN)return null; // discount filter
 
-    // ── Where price sits within today's range (0=at low, 100=at high) ──
-    const rangePos = Math.round(((price - low) / dayRange) * 100);
+    const earnings=await apiFetch('stock/earnings?symbol='+sym+'&limit=4').catch(()=>[]);
+    const fund=scoreFund(earnings,metrics);
+    const iv=calcIntrinsicValue(price,fund,MACRO);
+    if(!iv.signal||(iv.signal!=='UNDERVALUED'&&iv.signal!=='SLIGHT UNDERVALUE'))return null; // undervalued filter
 
-    // ── Bull scoring ──
-    let bull = 50;
-    if(abovePrev)  bull += 16; else bull -= 16;   // above prev close = bullish
-    if(aboveOpen)  bull += 10; else bull -= 10;   // above open = intraday strength
-    if(gapUp)      bull += 8;                      // gap up = strong overnight demand
-    if(gapDown)    bull -= 8;                      // gap down = overnight selling
-    if(chgPct > 2) bull += 10;                     // strong positive day
-    else if(chgPct > 0.5) bull += 5;
-    else if(chgPct < -2)  bull -= 10;
-    else if(chgPct < -0.5)bull -= 5;
-    if(rangePos > 70) bull += 6;                   // price near day high = strength
-    else if(rangePos < 30) bull -= 6;              // price near day low = weakness
-    bull = Math.min(Math.max(Math.round(bull), 0), 100);
-
-    // ── Bear scoring (independent) ──
-    let bear = 50;
-    if(!abovePrev) bear += 16; else bear -= 16;
-    if(!aboveOpen) bear += 10; else bear -= 10;
-    if(gapDown)    bear += 8;
-    if(gapUp)      bear -= 8;
-    if(chgPct < -2) bear += 10;
-    else if(chgPct < -0.5) bear += 5;
-    else if(chgPct > 2)    bear -= 10;
-    else if(chgPct > 0.5)  bear -= 5;
-    if(rangePos < 30) bear += 6;
-    else if(rangePos > 70) bear -= 6;
-    bear = Math.min(Math.max(Math.round(bear), 0), 100);
-
-    // ── P/C ratio: lightweight fetch, skip if slow ──
-    let pcRatio=null,pcLabel='',pcColor='var(--muted)';
-    try{
-      const exp=new Date();exp.setDate(exp.getDate()+30);
-      const expStr=exp.toISOString().split('T')[0];
-      const ctrl=new AbortController();
-      const tid=setTimeout(()=>ctrl.abort(),3000); // 3s timeout
-      const opts=await fetch('https://finnhub.io/api/v1/stock/option-chain?symbol='+sym+'&expirationDate='+expStr+'&token='+API_KEY,{signal:ctrl.signal}).then(r=>r.json()).catch(()=>null);
-      clearTimeout(tid);
-      if(opts&&opts.data&&opts.data.length>0){
-        let tc=0,tp=0;
-        opts.data.forEach(e=>{
-          (e.options?.CALL||[]).forEach(o=>{tc+=(o.volume||0);});
-          (e.options?.PUT||[]).forEach(o=>{tp+=(o.volume||0);});
-        });
-        if(tc>0){
-          pcRatio=parseFloat((tp/tc).toFixed(2));
-          if(pcRatio<0.7){pcLabel='BULLISH';pcColor='var(--green)';}
-          else if(pcRatio<1.0){pcLabel='NEUTRAL';pcColor='var(--muted)';}
-          else if(pcRatio<1.5){pcLabel='BEARISH';pcColor='var(--gold)';}
-          else{pcLabel='V.BEARISH';pcColor='var(--red)';}
-        }
-      }
-    }catch{}
-
-    return{sym,price,change:chg,changePct:chgPct,bull,bear,
-           momentum:momentumScore,rangePos,pcRatio,pcLabel,pcColor};
+    return{
+      sym,price,discount,high52,mcap,
+      ivSignal:iv.signal,margin:iv.margin,ivAverage:iv.average,
+      changePct:q.dp||0
+    };
   }catch{return null;}
 }
 
-function renderScanList(id,stocks,type){
-  const isCalls=type==='calls',color=isCalls?'#00ff88':'#ff4444',sk=isCalls?'bull':'bear';
-  if(!stocks.length){sH(id,'<div class="se">No strong '+type+' signals found</div>');return;}
-  sH(id,stocks.map((s,i)=>{
-    const score=s[sk],isUp=s.change>=0,cc=isUp?'#00ff88':'#ff4444';
-    return'<div class="sr" onclick="goToAnalysis(\''+s.sym+'\')">'+
+function renderLeapList(stocks){
+  if(!stocks.length){
+    sH('leap-list','<div class="se">No large-cap stocks currently meet all three conditions (market cap $10B+, &gt;15% off 52-week high, undervalued). Try again after market moves, or expand criteria.</div>');
+    return;
+  }
+  sH('leap-list',stocks.map((s,i)=>{
+    const strongUndervalued=s.ivSignal==='UNDERVALUED';
+    const ivColor=strongUndervalued?'var(--green)':'#88cc44';
+    return'<div class="sr" onclick="goToAnalysis(&#39;'+s.sym+'&#39;)">'+
       '<div class="srk">'+(i+1)+'</div>'+
-      '<div style="flex:1;min-width:0"><div class="stk" style="color:'+color+'">'+s.sym+'</div><div class="snm">'+(s.changePct>=0?'+':'')+s.changePct.toFixed(2)+'% \u00b7 '+(isCalls?'CALLS \u2191':'PUTS \u2193')+'</div></div>'+
-      '<div class="sbb"><div class="sbf" style="width:'+score+'%;background:'+color+'"></div></div>'+
-      '<div class="ssc" style="color:'+color+'">'+score+'</div>'+
-      '<div class="spw"><div class="spr">$'+fmt(s.price)+'</div><div class="sch" style="color:'+cc+'">'+(isUp?'+':'')+fmt(s.changePct)+'%</div></div>'+
-      (s.pcRatio!=null?'<div style="text-align:center;flex-shrink:0;min-width:42px"><div class="pc-badge" style="color:'+s.pcColor+';border-color:'+s.pcColor+'">'+s.pcLabel+'</div><div style="font-size:7px;color:var(--muted);margin-top:1px">P/C '+s.pcRatio+'</div></div>':'')+
-      '<div style="font-size:12px;color:#2a4060;flex-shrink:0;margin-left:2px">\u203a</div>'+
+      '<div style="flex:1;min-width:0"><div class="stk" style="color:var(--green)">'+s.sym+'</div><div class="snm">52wk high $'+fmt(s.high52)+' \u00b7 mcap $'+(s.mcap/1000).toFixed(0)+'B</div></div>'+
+      '<div class="ssc" style="color:var(--green)">-'+s.discount+'%</div>'+
+      '<div style="text-align:right;flex-shrink:0;min-width:56px"><div style="font-size:9px;font-weight:800;color:'+ivColor+'">'+(s.margin>=0?'+':'')+s.margin+'%</div><div style="font-size:7px;color:var(--muted);margin-top:1px">'+s.ivSignal+'</div></div>'+
+      '<div style="font-size:12px;color:#2a4060;flex-shrink:0;margin-left:6px">\u203a</div>'+
     '</div>';
   }).join(''));
 }
